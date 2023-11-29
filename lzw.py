@@ -64,16 +64,18 @@ def decode(filename, specialcodes=True):
                 newkey = len(codedict)
                 try:
                     codedict[newkey] = lastvalue + codevalue[0:1]
-                    logging.debug('added 0x%x: %s to codedict', newkey,
-                                  codedict[newkey])
+                    logging.debug('added 0x%x: ...%s to codedict', newkey,
+                                  codedict[newkey][-50:])
                 except TypeError:  # very first byte output has no lastvalue
                     logging.debug('not adding anything to dict after first'
                                   ' output byte %s', codevalue)
                     pass
                 if (len(codedict) + 1).bit_length() > (newkey + 1).bit_length():
-                    logging.debug('increasing bitlength to %d at dictsize %d',
-                                  GLOBAL['bitlength'] + 1, len(codedict))
-                    GLOBAL['bitlength'] += 1
+                    if GLOBAL['bitlength'] <= 11:  # no more than 12 bits
+                        logging.debug(
+                            'increasing bitlength to %d at dictsize %d',
+                            GLOBAL['bitlength'] + 1, len(codedict))
+                        GLOBAL['bitlength'] += 1
                 lastvalue = codevalue
             else:  # CLEAR_CODE or END_OF_INFO_CODE
                 logging.debug('special code found, resetting dictionary')
