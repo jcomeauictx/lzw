@@ -61,7 +61,7 @@ def decode(filename, specialcodes=True):
                 #outfile.flush()  # in case of error down the line
                 # now check if code is all ones except for LSB
                 # and raise bitlength if so
-                newkey = len(codedict) + 1
+                newkey = len(codedict)
                 try:
                     codedict[newkey] = lastvalue + codevalue[0:1]
                     logging.debug('added 0x%x: %s to codedict', newkey,
@@ -70,7 +70,7 @@ def decode(filename, specialcodes=True):
                     logging.debug('not adding anything to dict after first'
                                   ' output byte %s', codevalue)
                     pass
-                if (len(codedict) + 1).bit_length() > newkey.bit_length():
+                if (len(codedict) + 1).bit_length() > (newkey + 1).bit_length():
                     logging.debug('increasing bitlength to %d at dictsize %d',
                                   GLOBAL['bitlength'] + 1, len(codedict))
                     GLOBAL['bitlength'] += 1
