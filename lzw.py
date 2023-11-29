@@ -69,6 +69,8 @@ def decode(filename, specialcodes=True):
                                   ' output byte %s', codevalue)
                     pass
                 if (lastkey + 2).bit_length() > lastkey.bit_length():
+                    logging.debug('increasing bitlength to %d at dictsize %d',
+                                  GLOBAL['bitlength'] + 1, len(codedict))
                     GLOBAL['bitlength'] += 1
                 lastvalue = codevalue
             else:  # CLEAR_CODE or END_OF_INFO_CODE
