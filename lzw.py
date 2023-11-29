@@ -61,7 +61,7 @@ def decode(filename, specialcodes=True):
                 #outfile.flush()  # in case of error down the line
                 lastkey = len(codedict) - 1
                 try:
-                    codedict[lastkey + 1] = lastvalue + codevalue[0]
+                    codedict[lastkey + 1] = lastvalue + codevalue[0:1]
                     logging.debug('added %d: %s to codedict', lastkey + 1,
                                   codedict[lastkey + 1])
                 except TypeError:  # very first byte output has no lastvalue
