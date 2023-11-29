@@ -80,6 +80,7 @@ def decode(filename, specialcodes=True):
                 codedict.clear()
                 codedict.update(newdict(specialcodes))
                 GLOBAL['bitlength'] = 9
+                lastvalue = None
                 if code == END_OF_INFO_CODE:
                     logging.debug('end of info code found, exiting')
                     return
