@@ -59,16 +59,18 @@ def decode(filename, specialcodes=True):
             if codevalue is not None:
                 outfile.write(codevalue)
                 #outfile.flush()  # in case of error down the line
-                lastkey = len(codedict) - 1
+                # now check if code is all ones except for LSB
+                # and raise bitlength if so
+                newkey = len(codedict) + 1
                 try:
-                    codedict[lastkey + 1] = lastvalue + codevalue[0:1]
-                    logging.debug('added 0x%x: %s to codedict', lastkey + 1,
-                                  codedict[lastkey + 1])
+                    codedict[newkey] = lastvalue + codevalue[0:1]
+                    logging.debug('added 0x%x: %s to codedict', newkey,
+                                  codedict[newkey])
                 except TypeError:  # very first byte output has no lastvalue
                     logging.debug('not adding anything to dict after first'
                                   ' output byte %s', codevalue)
                     pass
-                if len(codedict).bit_length() > (lastkey + 1).bit_length():
+                if (len(codedict) + 1).bit_length() > newkey.bit_length():
                     logging.debug('increasing bitlength to %d at dictsize %d',
                                   GLOBAL['bitlength'] + 1, len(codedict))
                     GLOBAL['bitlength'] += 1
