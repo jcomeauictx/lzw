@@ -62,13 +62,13 @@ def decode(filename, specialcodes=True):
                 lastkey = len(codedict) - 1
                 try:
                     codedict[lastkey + 1] = lastvalue + codevalue[0:1]
-                    logging.debug('added %d: %s to codedict', lastkey + 1,
+                    logging.debug('added 0x%x: %s to codedict', lastkey + 1,
                                   codedict[lastkey + 1])
                 except TypeError:  # very first byte output has no lastvalue
                     logging.debug('not adding anything to dict after first'
                                   ' output byte %s', codevalue)
                     pass
-                if (lastkey + 2).bit_length() > lastkey.bit_length():
+                if len(codedict).bit_length() > (lastkey + 1).bit_length():
                     logging.debug('increasing bitlength to %d at dictsize %d',
                                   GLOBAL['bitlength'] + 1, len(codedict))
                     GLOBAL['bitlength'] += 1
@@ -79,6 +79,7 @@ def decode(filename, specialcodes=True):
                 codedict.update(newdict(specialcodes))
                 GLOBAL['bitlength'] = 9
                 if code == END_OF_INFO_CODE:
+                    logging.debug('end of info code found, exiting')
                     return
 
 if __name__ == '__main__':
