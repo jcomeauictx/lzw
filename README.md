@@ -17,7 +17,7 @@ Ziv-Welch files, right? Well, if there is, my google-fu failed to turn anything
 up. I did find two projects, <<https://michaeldipperstein.github.io/lzw.html>>
 and <<https://github.com/joeatwork/python-lzw>> that helped, but neither worked
 for me out of the box. So, after some cursing, I coded up my own. It seems to
-work---it produces output of the expected length---but the result is all white,
+work--it produces output of the expected length--but the result is all white,
 with a few lines of various shades of gray near the bottom.
 
 I did find, by `less`ing through the PDF itself, some `<004C>` and similar
