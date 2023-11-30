@@ -14,9 +14,18 @@ all: card.view
 	cat $< | ascii85 -d > $@
 %.rgb: %.lzw
 	./lzw.py $< $@
-%.view: %.rgb %.gs
+%.jpg: %.rgb %.gs
 	WIDTH=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$5}' $*.gs); \
 	HEIGHT=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$4}' $*.gs); \
-	echo $$WIDTH $$HEIGHT
+	SIZE=$$((WIDTH * HEIGHT * 3)); \
+	IMAGESIZE=$$(stat --format=%s $<); \
+	if [ "$${SIZE}00" = "$$IMAGESIZE" ]; then \
+	 convert -size $${WIDTH}0x$${HEIGHT}0 -depth 8 rgb:$< \
+	  -resize $${WIDTH}x$${HEIGHT} $@; \
+	else \
+	 convert -size $${WIDTH}x$${HEIGHT} -depth 8 rgb:$< $@; \
+	fi
+%.view: %.jpg
+	display $<
 clean:
-	rm -rf *.a85 *.ps *.lzw *.rgb *.gs
+	rm -rf *.a85 *.ps *.lzw *.rgb *.gs *.jpg
