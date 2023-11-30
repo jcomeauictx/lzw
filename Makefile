@@ -1,5 +1,5 @@
 SHELL := /bin/bash  # we're using Bashisms
-all: card.lzw
+all: card.view
 %.gs: %.pdf /usr/bin/pdf2ps
 	pdf2ps $< $@
 %.ps: %.pdf /usr/bin/pdftops
@@ -12,3 +12,11 @@ all: card.lzw
 	sed '1,/^ID$$/d' $< | sed '/^EI Q$$/,$$d' >> $@
 %.lzw: %.a85
 	cat $< | ascii85 -d > $@
+%.rgb: %.lzw
+	./lzw.py $< $@
+%.view: %.rgb %.gs
+	WIDTH=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$5}' $*.gs); \
+	HEIGHT=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$4}' $*.gs); \
+	echo $$WIDTH $$HEIGHT
+clean:
+	rm -rf *.a85 *.ps *.lzw *.rgb *.gs

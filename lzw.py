@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3 -OO
 '''
 Simple LZW decoder for PDF reverse engineering
 '''
@@ -45,11 +45,12 @@ def newdict(specialcodes=True):
     #logging.debug('codedict: %s', codedict)
     return codedict
 
-def decode(filename, specialcodes=True):
+def decode(filename, outfilename=None, specialcodes=True):
     codegen = nextcode(filename)
     codedict = newdict(specialcodes)
     decompressed = []
-    with open(filename + '.dat', 'wb') as outfile:
+    outfilename = outfilename or filename + '.raw'
+    with open(outfilename, 'wb') as outfile:
         lastvalue = codevalue = None
         for code in codegen:
             try:
@@ -88,4 +89,4 @@ def decode(filename, specialcodes=True):
                     return
 
 if __name__ == '__main__':
-    print(decode(sys.argv[1]))
+    print(decode(*sys.argv[1:]))
