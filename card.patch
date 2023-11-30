@@ -1,0 +1,39 @@
+--- tmp/card.gs.orig	2023-11-30 15:00:18.000000000 +0000
++++ tmp/card.gs	2023-11-30 13:42:35.000000000 +0000
+@@ -52,7 +52,7 @@
+ {grestoreall
+ }if
+ errorname(VMerror)ne
+-{showpage
++{phowpage
+ }if
+ initgraphics
+ 0 720 moveto
+@@ -87,7 +87,7 @@
+ }if
+ }ifelse
+ (%%]%)=
+-//systemdict/showpage get exec
++//systemdict/ghowpage get exec
+ quit
+ }if
+ end
+@@ -636,7 +636,17 @@
+ copypage
+ }repeat
+ }if
+-EPS2Write not{showpage}if
++EPS2Write not {
++ /inches {72 mul} def /x0 2.75 inches def /x1 5.5 inches def
++  /y0 9.7 inches def /y1 10.0 inches def
++ % erase poorly formatted URL
++ x0 y0 moveto x0 y1 lineto x1 y1 lineto x1 y0 lineto closepath
++ 1 setgray fill  % erased
++ % now rewrite it correctly
++ x0 .03 inches add y1 .13 inches sub moveto
++ /NimbusSans-Bold 7 selectfont 0 setgray
++ (redcross.org/take-a-class/qrcode?certnumber=01CBE4S) show
++showpage}if
+ pagesave restore
+ }if
+ }bind def

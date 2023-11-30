@@ -3,6 +3,7 @@ all: card.view
 %.gs: %.pdf /usr/bin/pdf2ps
 	pdf2ps $< $@
 %.ps: %.pdf /usr/bin/pdftops
+	pdftops $< $@
 /usr/bin/pdf2ps:
 	@echo Must install ghostscript package >&2
 /usr/bin/pdftops:
@@ -36,5 +37,8 @@ all: card.view
 	fi
 %.view: %.jpg
 	display $<
+fixedcard.pdf: card.gs card.patch
+	-patch $+  # ignore error about already-patched file
+	ps2pdf $< $@
 clean:
 	rm -rf *.a85 *.ps *.lzw *.rgb *.gs *.jpg *.png *.broken

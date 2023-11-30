@@ -24,3 +24,16 @@ I did find, by `less`ing through the PDF itself, some `<004C>` and similar
 entities, which come close to spelling my name, but as of now, with insufficient
 sleep and waning interest, I'm going to call this project done for the
 foreseeable future.
+
+[Following day...]
+
+Ended up fixing the PDF by:
+1. `make card.gs`
+2. editing the postscript, changing all 3 instances of `showpage` to a unique
+misspelling, to find out which was being used.
+3. inserting code before that showpage to erase the badly-formatted URL and
+rewrite it, using a font name I found in the PDF text and a size I got through
+repeated experimentation.
+
+The result of that you can see in the patch file (card.patch) and in the
+result of `make fixedcard.pdf`.
