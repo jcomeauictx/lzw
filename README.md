@@ -14,8 +14,8 @@ a PDF. That turned out to be wrong, but in the process I learned a lot.
 First, I had to decode the Ascii85, and found the ruby-ascii85 package for that.
 Then I had LZW-encoded data. Surely there's a Unix utility to decompress Lempel-
 Ziv-Welch files, right? Well, if there is, my google-fu failed to turn anything
-up. I did find two projects, <<https://michaeldipperstein.github.io/lzw.html>>
-and <<https://github.com/joeatwork/python-lzw>> that helped, but neither worked
+up. I did find two projects, <https://michaeldipperstein.github.io/lzw.html>
+and <https://github.com/joeatwork/python-lzw> that helped, but neither worked
 for me out of the box. So, after some cursing, I coded up my own. It seems to
 work&mdash;it produces output of the expected length&mdash;but the result is all white,
 with a few lines of various shades of gray near the bottom.
