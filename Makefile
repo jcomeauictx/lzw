@@ -14,6 +14,15 @@ all: card.view
 	cat $< | ascii85 -d > $@
 %.rgb: %.lzw
 	./lzw.py $< $@
+%.rgb.broken: %.lzw  # trying to use gzip decompress, not working
+	WIDTH=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$5}' $*.gs); \
+	HEIGHT=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$4}' $*.gs); \
+	SIZE=$$((WIDTH * HEIGHT * 300)); \
+	MODULUS=$$(printf %08x $$(($$SIZE % 0x100000000))); \
+	cat <(echo 1f8b0800000000000000 | xxd -r -p) \
+	 $< \
+	 <(echo 00000000$$MODULUS | xxd -r -p) \
+	 > $@
 %.jpg: %.rgb %.gs
 	WIDTH=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$5}' $*.gs); \
 	HEIGHT=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$4}' $*.gs); \
@@ -28,4 +37,4 @@ all: card.view
 %.view: %.jpg
 	display $<
 clean:
-	rm -rf *.a85 *.ps *.lzw *.rgb *.gs *.jpg
+	rm -rf *.a85 *.ps *.lzw *.rgb *.gs *.jpg *.png *.broken
