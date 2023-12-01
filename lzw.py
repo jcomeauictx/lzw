@@ -2,7 +2,7 @@
 '''
 Simple LZW decoder for PDF reverse engineering
 '''
-import sys, logging
+import sys, logging  # pylint: disable=multiple-imports
 
 CLEAR_CODE = 256
 END_OF_INFO_CODE = 257
@@ -45,8 +45,8 @@ def newdict(specialcodes=True):
     #logging.debug('codedict: %s', codedict)
     return codedict
 
-def decode(filename, outfilename=None, specialcodes=True,
-           minbits=9, maxbits=12):
+def decode(filename, outfilename=None, # pylint: disable=too-many-arguments
+           specialcodes=True, minbits=9, maxbits=12, codegenerator=None):
     '''
         adapted from pseudocode on page 61 of TIFF6.pdf
 
@@ -75,18 +75,40 @@ def decode(filename, outfilename=None, specialcodes=True,
                 }
             } /* end of not-ClearCode case */
         } /* end of while loop */
+
+    Test case from https://rosettacode.org/wiki/LZW_compression
+    >>> [84,79,66,69,79,82,78,79,84,256,258,260,265,259,261,263,
+    ... 84,111,32,98,101,32,111,114,32,110,111,116,32,116,257,259,
+    ... 268,104,97,267,105,115,272,260,113,117,101,115,116,105,111,
+    ... 110,33,34,84,104,101,114,101,32,105,115,32,110,111,116,104,
+    ... 105,110,103,32,112,259,109,97,110,101,110,116,32,101,120,
+    ... 99,101,112,281,99,104,277,103,101,46,34,32,296,45,298,296,
+    ... 32,72,259,97,99,108,105,116,117,264,32,91,53,52,48,32,299,
+    ... 52,55,53,32,66,67,69,93]
+    >>> decode('/tmp/', None, False, 9, 9, iter(_))
+    >>> check = open('/tmp/.raw', 'rb').read()
+    >>> check.startswith(b'TOBEORNOTTOBEORTOBEORNOT')
+    True
+    >>> check.index(b'To be or not to be that is the question!')
+    28
+    >>> check.index(b'"There is nothing permanent except change."')
+    75
+    >>> check.index(b'---   Heraclitus  [540 -- 475 BCE]')
+    122
+
     '''
-    codegen = nextcode(filename)
+    codegenerator = codegenerator or nextcode(filename)
     codedict = newdict(specialcodes)
     outfilename = outfilename or filename + '.raw'
     minbits = minbits or 9
     maxbits = maxbits or sys.maxsize
     with open(outfilename, 'wb') as outfile:
         lastvalue = codevalue = None
-        for code in codegen:
+        for code in codegenerator:
             try:
                 codevalue = codedict[code]
             except KeyError:  # code wasn't in dict
+                # pylint: disable=unsubscriptable-object  # None or bytes
                 codevalue = lastvalue + lastvalue[0:1]
             if codevalue is not None:
                 outfile.write(codevalue)
@@ -101,7 +123,6 @@ def decode(filename, outfilename=None, specialcodes=True,
                 except TypeError:  # first output after clearcode? no lastvalue
                     logging.debug('not adding anything to dict after first'
                                   ' output byte %s', codevalue)
-                    pass
                 if (len(codedict) + 1).bit_length() > (newkey + 1).bit_length():
                     if GLOBAL['bitlength'] < maxbits:
                         logging.debug(

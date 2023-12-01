@@ -1,5 +1,5 @@
 SHELL := /bin/bash  # we're using Bashisms
-all: card.view
+all: lzw.pylint lzw.doctest card.view
 %.gs: %.pdf /usr/bin/pdf2ps
 	pdf2ps $< $@
 %.ps: %.pdf /usr/bin/pdftops
@@ -42,3 +42,7 @@ fixedcard.pdf: card.gs card.patch
 	ps2pdf $< $@
 clean:
 	rm -rf *.a85 *.ps *.lzw *.rgb *.gs *.jpg *.png *.broken
+%.pylint: %.py
+	pylint $<
+%.doctest: %.py
+	python3 -m doctest $<
