@@ -45,11 +45,42 @@ def newdict(specialcodes=True):
     #logging.debug('codedict: %s', codedict)
     return codedict
 
-def decode(filename, outfilename=None, specialcodes=True):
+def decode(filename, outfilename=None, specialcodes=True,
+           minbits=9, maxbits=12):
+    '''
+        adapted from pseudocode on page 61 of TIFF6.pdf
+
+
+        while ((Code = GetNextCode()) != EoiCode) {
+            if (Code == ClearCode) {
+                InitializeTable();
+                Code = GetNextCode();
+                if (Code == EoiCode)
+                    break;
+                WriteString(StringFromCode(Code));
+                OldCode = Code;
+            } /* end of ClearCode case */
+            else {
+                if (IsInTable(Code)) {
+                    WriteString(StringFromCode(Code));
+                    AddStringToTable(StringFromCode(OldCode
+                        )+FirstChar(StringFromCode(Code)));
+                    OldCode = Code;
+                } else {
+                    OutString = StringFromCode(OldCode) +
+                        FirstChar(StringFromCode(OldCode));
+                    WriteString(OutString);
+                    AddStringToTable(OutString);
+                    OldCode = Code;
+                }
+            } /* end of not-ClearCode case */
+        } /* end of while loop */
+    '''
     codegen = nextcode(filename)
     codedict = newdict(specialcodes)
-    decompressed = []
     outfilename = outfilename or filename + '.raw'
+    minbits = minbits or 9
+    maxbits = maxbits or sys.maxsize
     with open(outfilename, 'wb') as outfile:
         lastvalue = codevalue = None
         for code in codegen:
@@ -67,12 +98,12 @@ def decode(filename, outfilename=None, specialcodes=True):
                     codedict[newkey] = lastvalue + codevalue[0:1]
                     logging.debug('added 0x%x: ...%s to codedict', newkey,
                                   codedict[newkey][-50:])
-                except TypeError:  # very first byte output has no lastvalue
+                except TypeError:  # first output after clearcode? no lastvalue
                     logging.debug('not adding anything to dict after first'
                                   ' output byte %s', codevalue)
                     pass
                 if (len(codedict) + 1).bit_length() > (newkey + 1).bit_length():
-                    if GLOBAL['bitlength'] <= 11:  # no more than 12 bits
+                    if GLOBAL['bitlength'] < maxbits:
                         logging.debug(
                             'increasing bitlength to %d at dictsize %d',
                             GLOBAL['bitlength'] + 1, len(codedict))
@@ -82,7 +113,7 @@ def decode(filename, outfilename=None, specialcodes=True):
                 logging.debug('special code found, resetting dictionary')
                 codedict.clear()
                 codedict.update(newdict(specialcodes))
-                GLOBAL['bitlength'] = 9
+                GLOBAL['bitlength'] = minbits
                 lastvalue = None
                 if code == END_OF_INFO_CODE:
                     logging.debug('end of info code found, exiting')
@@ -90,3 +121,4 @@ def decode(filename, outfilename=None, specialcodes=True):
 
 if __name__ == '__main__':
     print(decode(*sys.argv[1:]))
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
