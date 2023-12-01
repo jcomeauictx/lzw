@@ -14,7 +14,7 @@ all: lzw.pylint lzw.doctest card.view
 %.lzw: %.a85
 	cat $< | ascii85 -d > $@
 %.rgb: %.lzw
-	./lzw.py $< $@
+	python3 ./lzw.py $< $@ 2>/tmp/lzw.log
 %.rgb.broken: %.lzw  # trying to use gzip decompress, not working
 	WIDTH=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$5}' $*.gs); \
 	HEIGHT=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$4}' $*.gs); \

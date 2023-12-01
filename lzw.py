@@ -25,10 +25,11 @@ def nextcode(filename):
             logging.debug('input byte %s: 0x%x', byte, rawbyte)
             instream += format(rawbyte, '08b')
             if len(instream) >= GLOBAL['bitlength']:
-                code = instream[:GLOBAL['bitlength']]
-                logging.debug('next code: %s', code)
+                bincode = instream[:GLOBAL['bitlength']]
                 instream = instream[GLOBAL['bitlength']:]
-                yield int(code, 2)
+                code = int(bincode, 2)
+                logging.debug('nextcode: 0x%x (%d) %s', code, code, bincode)
+                yield code
 
 def newdict(specialcodes=True):
     '''
@@ -107,14 +108,13 @@ def decode(filename, outfilename=None, # pylint: disable=too-many-arguments
     with open(outfilename, 'wb') as outfile:
         lastvalue = codevalue = None
         for code in codegenerator:
-            logging.debug('found code 0x%x (%d)', code, code)
             try:
                 codevalue = codedict[code]
             except KeyError:  # code wasn't in dict
                 # pylint: disable=unsubscriptable-object  # None or bytes
                 codevalue = lastvalue + lastvalue[0:1]
             if codevalue is not None:
-                logging.debug('writing out %s', codevalue)
+                logging.debug('writing out %d bytes', len(codevalue))
                 outfile.write(codevalue)
                 #outfile.flush()  # in case of error down the line
                 # now check if code is all ones except for LSB
