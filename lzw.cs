@@ -11,7 +11,7 @@ dup bytesavailable [0] astore
 {dup stringbuffer readstring 1 index length 0 gt or
   {output exch writestring} {pop output flushfile exit} ifelse} loop
 [ outfile status ] 1 get dup 0 gt
-  {[0] astore 128 string (bytes written: %d) 3 -1 roll sprintf
+  {[0] astore 128 string (bytes written: %d\n) 3 -1 roll sprintf
     {(%stderr) (w) file exch writestring} {pop} ifelse}
   {pop}
   ifelse
