@@ -98,7 +98,6 @@ def decode(filename, outfilename=None, # pylint: disable=too-many-arguments
     True
     >>> check.index(b'---   Heraclitus  [540 -- 475 BCE]')
     46
-
     '''
     codegenerator = codegenerator or nextcode(filename)
     codedict = newdict(specialcodes)
