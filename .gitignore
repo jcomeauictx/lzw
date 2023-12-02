@@ -7,3 +7,5 @@
 *.broken
 fixedcard.pdf
 *.rej
+*.check
+__pycache__
