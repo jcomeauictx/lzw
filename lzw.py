@@ -144,5 +144,5 @@ def decode(filename, outfilename=None, # pylint: disable=too-many-arguments
                     return
 
 if __name__ == '__main__':
-    print(decode(*sys.argv[1:]))
+    decode(*sys.argv[1:])
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4

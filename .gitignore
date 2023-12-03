@@ -9,3 +9,5 @@ fixedcard.pdf
 *.rej
 *.check
 __pycache__
+*.doctest
+*.pylint

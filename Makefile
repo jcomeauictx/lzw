@@ -13,8 +13,8 @@ all: lzw.pylint lzw.doctest card.view
 	sed '1,/^ID$$/d' $< | sed '/^EI Q$$/,$$d' >> $@
 %.lzw: %.a85
 	cat $< | ascii85 -d > $@
-%.rgb: %.lzw
-	python3 ./lzw.py $< $@ 2>/tmp/lzw.log
+%.rgb: lzw.py %.lzw
+	./$+ $@  #2>/tmp/lzw.log
 %.view: %.rgb %.gs
 	WIDTH=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$4}' $*.gs); \
 	HEIGHT=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$5}' $*.gs); \
@@ -30,8 +30,10 @@ fixedcard.pdf: card.gs card.patch
 	-patch $+  # ignore error about already-patched file
 	ps2pdf $< $@
 clean:
-	rm -rf *.a85 *.ps *.lzw *.rgb *.gs *.jpg *.png *.broken
+	rm -rf *.a85 *.ps *.lzw *.rgb *.gs *.jpg *.png *.broken __pycache__
+distclean: clean
+	rm -f fixedcard.pdf *.rej *.check *.doctest *.pylint *.raw
 %.pylint: %.py
-	pylint $<
+	pylint $< > $@
 %.doctest: %.py
-	python3 -m doctest $<
+	python3 -m doctest $< > $@
