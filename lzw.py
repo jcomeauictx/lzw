@@ -102,7 +102,9 @@ def decode(filename, outfilename=None, # pylint: disable=too-many-arguments
     codegenerator = codegenerator or nextcode(filename)
     codedict = newdict(specialcodes)
     outfilename = outfilename or filename + '.raw'
-    minbits = minbits or 9
+    # global bitlength used if unspecified by caller
+    minbits = minbits or GLOBAL['bitlength']
+    GLOBAL['bitlength'] = minbits  # otherwise minbits overrides global
     maxbits = maxbits or sys.maxsize
     with open(outfilename, 'wb') as outfile:
         lastvalue = codevalue = None
@@ -111,7 +113,17 @@ def decode(filename, outfilename=None, # pylint: disable=too-many-arguments
                 codevalue = codedict[code]
             except KeyError:  # code wasn't in dict
                 # pylint: disable=unsubscriptable-object  # None or bytes
-                codevalue = lastvalue + lastvalue[0:1]
+                try:
+                    codevalue = lastvalue + lastvalue[0:1]
+                except (TypeError, IndexError):
+                    # we assume it's netpbm- or imgtops-generated raster
+                    # data that uses a primitive 8-bit-only run length
+                    # encoding.
+                    if GLOBAL['bitlength'] == 8:
+                        raise
+                    logging.error('starting over with minbits=maxbits=8')
+                    return decode(filename, outfilename, specialcodes,
+                                  8, 8, codegenerator)
             if codevalue is not None:
                 logging.debug('writing out %d bytes', len(codevalue))
                 outfile.write(codevalue)
@@ -141,7 +153,8 @@ def decode(filename, outfilename=None, # pylint: disable=too-many-arguments
                 lastvalue = None
                 if code == END_OF_INFO_CODE:
                     logging.debug('end of info code found, exiting')
-                    return
+                    return None
+    return None
 
 if __name__ == '__main__':
     decode(*sys.argv[1:])
