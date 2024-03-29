@@ -1,4 +1,9 @@
 SHELL := /bin/bash  # we're using Bashisms
+ASCII85 := $(shell PATH=$(PATH):. \
+	     which ascii85 ascii85.py 2>/dev/null | head -n 1)
+ifneq ($(SHOW_ENV),)
+  export
+endif
 all: lzw.pylint lzw.doctest card.view
 %.gs: %.pdf /usr/bin/pdf2ps
 	pdf2ps $< $@
@@ -12,7 +17,7 @@ all: lzw.pylint lzw.doctest card.view
 	echo '<~' > $@
 	sed '1,/^ID$$/d' $< | sed '/^EI Q$$/,$$d' >> $@
 %.lzw: %.a85
-	cat $< | ascii85 -d > $@
+	cat $< | $(ASCII85) -d > $@
 %.rgb: lzw.py %.lzw
 	./$+ $@  #2>/tmp/lzw.log
 %.view: %.rgb %.gs
@@ -37,3 +42,9 @@ distclean: clean
 	pylint $< > $@
 %.doctest: %.py
 	python3 -m doctest $< > $@
+env:
+	if [ -z $(SHOW_ENV) ]; then \
+	 $(MAKE) SHOW_ENV=1 $@; \
+	else \
+	 $@; \
+	fi
