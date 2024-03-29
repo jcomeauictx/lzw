@@ -41,6 +41,6 @@ def route(args):
     else:
         infile = open(filename, 'rb')
     return command(infile)
-    
+
 if __name__ == '__main__':
     OUTPUT.write(route(sys.argv[1:]))
