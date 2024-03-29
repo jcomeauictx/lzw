@@ -10,7 +10,9 @@ find was an image the same size as the PDF, so surmised that Red Cross had
 simply made an image with the whole contents of the card and turned it into
 a PDF. That turned out to be correct.
 
-First, I had to decode the Ascii85, and found the ruby-ascii85 package for that.
+First, I had to decode the Ascii85, and found the ruby-ascii85 package for that,
+but later I realized that Python3 has ascii85 support hidden in the base64
+module, and wrote a script that half-assed mimics the Ruby program.
 Then I had LZW-encoded data. Surely there's a Unix utility to decompress Lempel-
 Ziv-Welch files, right? Well, if there is, my google-fu failed to turn anything
 up. I did find two projects, <https://michaeldipperstein.github.io/lzw.html>
