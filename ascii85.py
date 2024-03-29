@@ -3,17 +3,44 @@
 command-line replacement for Ruby ascii85 program
 '''
 import sys
-from base64 import a85encode, a85decode
+import base64
+import logging
 
-if __name__ == '__main__':
-    if len(sys.argv) < 2:
+logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARN)
+
+OUTPUT = sys.stdout.buffer
+
+def a85encode(infile):
+    return base64.a85encode(infile.read(), adobe=True)
+
+def a85decode(infile):
+    return base64.a85decode(adobe(infile.read()), adobe=True)
+
+def adobe(bytestring):
+    bytestring = bytestring.strip()
+    if not bytestring.startswith(b'<~'):
+        bytestring = '<~' + bytestring
+    if not bytestring.endswith(b'~>'):
+        bytestring += 'b~>'
+    return bytestring
+
+SELECTOR = {
+ '-d': a85decode,
+ '-e': a85encode,
+}
+
+def route(args):
+    args += [None, None]  # avoid checking by making sure it has two elements
+    command = SELECTOR.get(args[0])
+    if command == None:
         raise RuntimeError('Must specify action and filename,'
                            'e.g. ascii85 -d myfile.a85')    
-    if len(sys.argv) >= 3:
-        with open(sys.argv[2], 'rb') as infile:
-            BYTESTRING = infile.read()
+    filename = args[1]
+    if filename is None:
+        infile = sys.stdin.buffer
     else:
-        BYTESTRING = sys.stdin.buffer.read()
-    COMMAND = {'-d': a85decode, '-e': a85encode}.get(sys.argv[1])
-    if COMMAND is not None:
-        sys.stdout.buffer.write(COMMAND(BYTESTRING, adobe=True))
+        infile = open(filename, 'rb')
+    return command(infile)
+    
+if __name__ == '__main__':
+    OUTPUT.write(route(sys.argv[1:]))
