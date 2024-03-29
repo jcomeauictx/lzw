@@ -1,6 +1,6 @@
 #!/usr/src/jcomeauictx/casperscript/bin/bccs
-/infile argc 1 gt {argv 1 get} {(/dev/stdin)} ifelse def
-/outfile argc 2 gt {argv 2 get} {(/dev/stdout)} ifelse def
+/infile sys.argc 1 gt {sys.argv 1 get} {(/dev/stdin)} ifelse def
+/outfile sys.argc 2 gt {sys.argv 2 get} {(/dev/stdout)} ifelse def
 infile (r) file
 dup bytesavailable [0] astore
 128 string (bytes of LZW data: %d\n) 3 -1 roll sprintf
