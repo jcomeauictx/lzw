@@ -8,7 +8,7 @@ import sys, logging  # pylint: disable=multiple-imports
 
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARN)
 
-def unpack(instream=sys.stdin.buffer, outstream=sys.stdout.buffer):
+def unpack(instream=None, outstream=None):
     '''
     UnPackBits routine from pseudocode
 
@@ -30,11 +30,15 @@ def unpack(instream=sys.stdin.buffer, outstream=sys.stdout.buffer):
 
     So we implement (-signed+1) as (257-unsigned)
     '''
+    instream = instream or sys.stdin.buffer
+    outstream = outstream or sys.stdout.buffer
     # "Loop until you get the number of unpacked bytes you are expecting"
     # we don't know this information, so we just read until EOF
     # "Read the next source byte into n."
     # pylint: disable=invalid-name  # using pseudocode naming, not snake_case
-    while (n := instream.read(1)) != b'':
+    while (nextbyte := instream.read(1)) != b'':
+        n = ord(nextbyte)
+        logging.debug('nexbyte is %s (%d)', nextbyte, n)
         # If n between 0 and 127 inclusive, copy the next n+1 bytes literally
         if n < 128:
             logging.debug('copying verbatim next %d bytes', n)
@@ -43,7 +47,7 @@ def unpack(instream=sys.stdin.buffer, outstream=sys.stdout.buffer):
         # copy the next byte -n+1 times.
         # Else if n is -128, noop [we ignore this case].
         elif n != 128:
-            logging.debug('writing out following byte %d times', 257)
+            logging.debug('writing out following byte %d times', 257 - n)
             outstream.write(instream.read(1) * (257 - n))
 
 if __name__ == '__main__':
