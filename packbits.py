@@ -9,7 +9,7 @@ import sys, logging  # pylint: disable=multiple-imports
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARN)
 
 def unpack(instream=None, outstream=None):
-    '''
+    r'''
     UnPackBits routine from pseudocode
 
     The pseudocode uses signed 8-bit integer values, which is normal for
@@ -68,7 +68,9 @@ def pack(instream=None, outstream=None, buffersize=4096):
     >>> check = BytesIO(b'')
     >>> pack(sample, check)
     >>> check.getvalue()
+    b'\xfe1\xf9a\xfeb\x00d\xfec\xf75\x00s'
     >>> check.seek(0)
+    0
     >>> recheck = BytesIO(b'')
     >>> unpack(check, recheck)
     >>> recheck.getvalue()
@@ -83,6 +85,7 @@ def pack(instream=None, outstream=None, buffersize=4096):
         it's packed, now ship it over outstream.
         send twopeats ship_literal=True where appropriate.
         '''
+        logging.debug('shipping chunk %s', chunk)
         if chunk[0] == 'literal':
             if len(chunk[1]):  # don't ship empty literals
                 outstream.write(bytes([len(chunk[1]) - 1]))
@@ -96,6 +99,7 @@ def pack(instream=None, outstream=None, buffersize=4096):
         '''
         iterate over chunks and ship according to the rules above.
         '''
+        logging.debug('purging chunks %s', chunks)
         if final:
             chunks += ['literal', b'']
         ship(chunks[0])
