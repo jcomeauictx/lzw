@@ -43,8 +43,8 @@ def unpack(instream=None, outstream=None):
         if n < 128:
             logging.debug('copying verbatim next %d bytes', n)
             outstream.write(instream.read(n))
-        # Else if n is between -127 and -1 inclusive,
-        # copy the next byte -n+1 times.
+        # Else if n is between -127 [128] and -1 [255] inclusive,
+        # copy the next byte -n+1 [257-n] times.
         # Else if n is -128, noop [we ignore this case].
         elif n != 128:
             logging.debug('writing out following byte %d times', 257 - n)
@@ -65,17 +65,49 @@ def pack(instream=None, outstream=None, buffersize=4096):
 
     >>> from io import BytesIO
     >>> sample = BytesIO(b'111aaaaaaaabbbdccc5555555555s')
-    >>> pack(sample, sys.stdout)
+    >>> check = BytesIO(b'')
+    >>> pack(sample, check)
+    >>> check.read()
+    b'111aaaaaaaabbbdccc5555555555s'
     '''
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
     bytestring = b''
     chunks = [['literal', b'']]
+    def ship(chunk, ship_literal=False):
+        '''
+        it's packed, now ship it over outstream.
+        send twopeats ship_literal=True where appropriate.
+        '''
+        if chunk[0] == 'literal':
+            if len(chunk[1]):  # don't ship empty literals
+                outstream.write(bytes([len(chunk[1]) - 1]))
+                outstream.write(chunk[1])
+        elif ship_literal:
+            outstream.write(chunk[1] * chunk[0])
+        else:
+            outstream.write(bytes([257 - chunk[0]]))
+            outstream.write(chunk[1])
+    def purge(chunks, final=False):
+        '''
+        iterate over chunks and ship according to the rules above.
+        '''
+        if final:
+            chunks += ['literal', b'']
+        ship(chunks[0])
+        for index in range(1, len(chunks) - 1):
+            chunk = chunks[index]
+            if chunk[0] == 2:
+                if chunks[index - 1][0] == chunks[index + 1][0] == 'literal':
+                    ship(chunk, True)
+                    continue
+            ship(chunk)
     while bytestring or (nextblock := instream.read(buffersize)) != b'':
         bytestring += nextblock
         while bytestring:
             if len(bytestring) < 128:
                 bytestring += instream.read(buffersize)
+                purge(chunks)
             byte = bytestring[0:1]
             substring = bytestring.lstrip(byte)
             count = len(bytestring) - len(substring)
