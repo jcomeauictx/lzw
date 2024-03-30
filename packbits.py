@@ -67,7 +67,11 @@ def pack(instream=None, outstream=None, buffersize=4096):
     >>> sample = BytesIO(b'111aaaaaaaabbbdccc5555555555s')
     >>> check = BytesIO(b'')
     >>> pack(sample, check)
-    >>> check.read()
+    >>> check.getvalue()
+    >>> check.seek(0)
+    >>> recheck = BytesIO(b'')
+    >>> unpack(check, recheck)
+    >>> recheck.getvalue()
     b'111aaaaaaaabbbdccc5555555555s'
     '''
     instream = instream or sys.stdin.buffer
