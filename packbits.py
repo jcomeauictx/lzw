@@ -104,8 +104,11 @@ def pack(instream=None, outstream=None, buffersize=4096):
             if chunk[0] == 2:
                 if chunks[index - 1][0] == chunks[index + 1][0] == 'literal':
                     ship(chunk, True)
-                    continue
-            ship(chunk)
+                else:
+                    ship(chunk)
+            else:
+                ship(chunk)
+        chunks[0:-1] = []
     while bytestring or (nextblock := instream.read(buffersize)) != b'':
         bytestring += nextblock
         while bytestring:
@@ -123,7 +126,7 @@ def pack(instream=None, outstream=None, buffersize=4096):
             else:
                 chunks.append([count, byte])
             bytestring = substring
-    logging.debug(chunks)
+        purge(chunks, True)
 
 if __name__ == '__main__':
     # pylint: disable=consider-using-with
