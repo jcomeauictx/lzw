@@ -58,20 +58,36 @@ def pack(instream=None, outstream=None, buffersize=4096):
      as a replicate run except when preceded and followed by a literal run.
      In that case, it is best to merge the three runs into one literal run.
      Always encode 3-byte repeats as replicate runs."
+
+    Or in other words:
+    * threepeats and better always get replicated
+    * twopeats sent literally only if surrounded by literal runs
+
+    >>> from io import BytesIO
+    >>> sample = BytesIO(b'111aaaaaaaabbbdccc5555555555s')
+    >>> pack(sample, sys.stdout)
     '''
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
-    packing = 'literal'  # as opposed to 'replicate'
     bytestring = b''
-    index = 0
+    chunks = [['literal', b'']]
     while bytestring or (nextblock := instream.read(buffersize)) != b'':
         bytestring += nextblock
-        while index < len(bytestring):
-            # threepeats and better always get replicated
-            # twopeats sent literally if surrounded by literal runs
-            if bytestring[index] == bytestring[index + 1:index + 2]:
-                if bytestring[index] == bytestring[index + 2:index + 3]:
-                    packing = 'replicate'
+        while bytestring:
+            if len(bytestring) < 128:
+                bytestring += instream.read(buffersize)
+            byte = bytestring[0:1]
+            substring = bytestring.lstrip(byte)
+            count = len(bytestring) - len(substring)
+            if count == 1:
+                if chunks[-1][0] == 'literal':
+                    chunks[-1][1] += byte
+                else:
+                    chunks.append(['literal', byte])
+            else:
+                chunks.append([count, byte])
+            bytestring = substring
+    logging.debug(chunks)
 
 if __name__ == '__main__':
     # pylint: disable=consider-using-with
