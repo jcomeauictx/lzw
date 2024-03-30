@@ -50,6 +50,29 @@ def unpack(instream=None, outstream=None):
             logging.debug('writing out following byte %d times', 257 - n)
             outstream.write(instream.read(1) * (257 - n))
 
+def pack(instream=None, outstream=None, buffersize=4096):
+    '''
+    PackBits routine. The above referenced page states:
+
+    "In the inverse routine, it is best to encode a 2-byte repeat run
+     as a replicate run except when preceded and followed by a literal run.
+     In that case, it is best to merge the three runs into one literal run.
+     Always encode 3-byte repeats as replicate runs."
+    '''
+    instream = instream or sys.stdin.buffer
+    outstream = outstream or sys.stdout.buffer
+    packing = 'literal'  # as opposed to 'replicate'
+    bytestring = b''
+    index = 0
+    while bytestring or (nextblock := instream.read(buffersize)) != b'':
+        bytestring += nextblock
+        while index < len(bytestring):
+            # threepeats and better always get replicated
+            # twopeats sent literally if surrounded by literal runs
+            if bytestring[index] == bytestring[index + 1:index + 2]:
+                if bytestring[index] == bytestring[index + 2:index + 3]:
+                    packing = 'replicate'
+
 if __name__ == '__main__':
     # pylint: disable=consider-using-with
     sys.argv += [None, None]  # use stdin and stdout by default
