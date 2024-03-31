@@ -48,3 +48,6 @@ env:
 	else \
 	 $@; \
 	fi
+%.pnm: %.png
+	pngtopam $< > $@
+packtest: $(HOME)/tmp/sample.pnm
