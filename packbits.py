@@ -134,6 +134,8 @@ def pack(instream=None, outstream=None, buffersize=4096):
                     chunks[-1][1] += (byte * count)
                 else:
                     chunks.append([count, byte])
+            elif chunks[-1][0] != 1 and chunks[-1][1] == byte:
+                chunks[-1][0] += count
             else:
                 chunks.append([count, byte])
             bytestring = substring

@@ -16,7 +16,7 @@ all: lzw.pylint lzw.doctest card.view
 %.a85: %.gs
 	echo '<~' > $@
 	sed '1,/^ID$$/d' $< | sed '/^EI Q$$/,$$d' >> $@
-%.lzw: %.a85
+%.lzw %.rle: %.a85
 	cat $< | $(ASCII85) -d > $@
 %.rgb: lzw.py %.lzw
 	./$+ $@  #2>/tmp/lzw.log
@@ -53,4 +53,6 @@ env:
 %.a85: %.eps
 	echo '<~' > $@
 	sed '1,/^image\r\?$$/d' $< | sed '/^grestore\r\?$$/,$$d' >> $@
-packtest: $(HOME)/tmp/sample.lzw
+%.rgb: %.rle
+	python3 packbits.py unpack $< $@
+packtest: $(HOME)/tmp/sample.rgb
