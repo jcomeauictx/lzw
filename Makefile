@@ -57,4 +57,6 @@ env:
 	python3 packbits.py unpack $< $@
 %.rle.repacked: %.rgb
 	python3 packbits.py pack $< $@
-packtest: $(HOME)/tmp/sample.rle.repacked
+%.rgb.reunpacked: %.rle.repacked
+	python3 packbits.py unpack $< $@
+packtest: $(HOME)/tmp/sample.rgb.reunpacked
