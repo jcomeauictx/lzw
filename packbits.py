@@ -51,7 +51,7 @@ def unpack(instream=None, outstream=None):
             outstream.write(instream.read(1) * (257 - n))
 
 def pack(instream=None, outstream=None, buffersize=4096):
-    '''
+    r'''
     PackBits routine. The above referenced page states:
 
     "In the inverse routine, it is best to encode a 2-byte repeat run
@@ -101,7 +101,7 @@ def pack(instream=None, outstream=None, buffersize=4096):
         '''
         logging.debug('purging chunks %s', chunks)
         if final:
-            chunks += ['literal', b'']
+            chunks.append(['literal', b''])
         ship(chunks[0])
         for index in range(1, len(chunks) - 1):
             chunk = chunks[index]
