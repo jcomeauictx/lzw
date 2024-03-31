@@ -50,4 +50,7 @@ env:
 	fi
 %.pnm: %.png
 	pngtopam $< > $@
-packtest: $(HOME)/tmp/sample.pnm
+%.a85: %.eps
+	echo '<~' > $@
+	sed '1,/^image\r\?$$/d' $< | sed '/^grestore\r\?$$/,$$d' >> $@
+packtest: $(HOME)/tmp/sample.lzw
