@@ -55,4 +55,6 @@ env:
 	sed '1,/^image\r\?$$/d' $< | sed '/^grestore\r\?$$/,$$d' >> $@
 %.rgb: %.rle
 	python3 packbits.py unpack $< $@
-packtest: $(HOME)/tmp/sample.rgb
+%.rle.repacked: %.rgb
+	python3 packbits.py pack $< $@
+packtest: $(HOME)/tmp/sample.rle.repacked
