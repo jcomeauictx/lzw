@@ -41,8 +41,8 @@ def unpack(instream=None, outstream=None):
         logging.debug('nexbyte is %s (%d)', nextbyte, n)
         # If n between 0 and 127 inclusive, copy the next n+1 bytes literally
         if n < 128:
-            logging.debug('copying verbatim next %d bytes', n)
-            outstream.write(instream.read(n))
+            logging.debug('copying verbatim next %d bytes', n + 1)
+            outstream.write(instream.read(n + 1))
         # Else if n is between -127 [128] and -1 [255] inclusive,
         # copy the next byte -n+1 [257-n] times.
         # Else if n is -128, noop [we ignore this case].
