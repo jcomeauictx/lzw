@@ -63,6 +63,10 @@ def pack(instream=None, outstream=None, buffersize=4096):
     * threepeats and better always get replicated
     * twopeats sent literally only if surrounded by literal runs
 
+    In practice, the above "twopeat" strategy seems a little daunting with
+    the forward lookups. For now, my plan is to just append the two bytes
+    to the previous literal string if there is one.
+
     >>> from io import BytesIO
     >>> sample = BytesIO(b'111aaaaaaaabbbdccc5555555555s')
     >>> check = BytesIO(b'')
@@ -79,19 +83,16 @@ def pack(instream=None, outstream=None, buffersize=4096):
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
     bytestring = b''
-    chunks = [['literal', b'']]
-    def ship(chunk, ship_literal=False):
+    chunks = [[1, b'']]  # 1 here doesn't mean count, it means 'literal'
+    def ship(chunk):
         '''
         it's packed, now ship it over outstream.
-        send twopeats ship_literal=True where appropriate.
         '''
         logging.debug('shipping chunk %s', chunk)
-        if chunk[0] == 'literal':
+        if chunk[0] == 1:
             if len(chunk[1]):  # don't ship empty literals
                 outstream.write(bytes([len(chunk[1]) - 1]))
                 outstream.write(chunk[1])
-        elif ship_literal:
-            outstream.write(chunk[1] * chunk[0])
         else:
             while chunk[0] > 128:
                 ship([128, chunk[1]])
@@ -101,7 +102,7 @@ def pack(instream=None, outstream=None, buffersize=4096):
             except ValueError:
                 logging.debug('chunk %s count value out of bounds', chunk)
                 if chunk[0] == 1:
-                    ship(['literal', chunk[1]])
+                    ship([1, chunk[1]])
                 else:
                     raise
             outstream.write(chunk[1])
@@ -111,18 +112,13 @@ def pack(instream=None, outstream=None, buffersize=4096):
         '''
         logging.debug('purging chunks %s', chunks)
         if final:
-            chunks.append(['literal', b''])
-        ship(chunks[0])
-        for index in range(1, len(chunks) - 1):
-            chunk = chunks[index]
-            if chunk[0] == 2:
-                if chunks[index - 1][0] == chunks[index + 1][0] == 'literal':
-                    ship(chunk, True)
-                else:
-                    ship(chunk)
-            else:
-                ship(chunk)
-        chunks[0:-1] = []
+            # append noop as EOF marker (PLRM3 page 142)
+            chunks.append([1, b'\x80'])
+            # append empty chunk so following loop sends all real chunks
+            chunks.append([1, b''])
+        for chunk in chunks[:-1]:
+            ship(chunk)
+        chunks[0:-1] = []  # purge the shipped chunks from list
     while bytestring or (nextblock := instream.read(buffersize)) != b'':
         bytestring += nextblock
         while bytestring:
@@ -132,11 +128,12 @@ def pack(instream=None, outstream=None, buffersize=4096):
             byte = bytestring[0:1]
             substring = bytestring.lstrip(byte)
             count = len(bytestring) - len(substring)
-            if count == 1:
-                if chunks[-1][0] == 'literal':
-                    chunks[-1][1] += byte
+            if count < 3:
+                if chunks[-1][0] == 1 and \
+                        len(chunks[-1][1]) < (129 - count):
+                    chunks[-1][1] += (byte * count)
                 else:
-                    chunks.append(['literal', byte])
+                    chunks.append([count, byte])
             else:
                 chunks.append([count, byte])
             bytestring = substring
