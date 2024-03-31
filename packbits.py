@@ -137,7 +137,7 @@ def pack(instream=None, outstream=None, buffersize=4096):
             else:
                 chunks.append([count, byte])
             bytestring = substring
-        purge(chunks, True)
+    purge(chunks, True)
 
 if __name__ == '__main__':
     # pylint: disable=consider-using-with
