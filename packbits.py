@@ -38,7 +38,7 @@ def unpack(instream=None, outstream=None):
     # pylint: disable=invalid-name  # using pseudocode naming, not snake_case
     while (nextbyte := instream.read(1)) != b'':
         n = ord(nextbyte)
-        logging.debug('nexbyte is %s (%d)', nextbyte, n)
+        logging.debug('nextbyte is %s (%d)', nextbyte, n)
         # If n between 0 and 127 inclusive, copy the next n+1 bytes literally
         if n < 128:
             logging.debug('copying verbatim next %d bytes', n + 1)
@@ -93,7 +93,17 @@ def pack(instream=None, outstream=None, buffersize=4096):
         elif ship_literal:
             outstream.write(chunk[1] * chunk[0])
         else:
-            outstream.write(bytes([257 - chunk[0]]))
+            while chunk[0] > 128:
+                ship([128, chunk[1]])
+                chunk[0] -= 128
+            try:
+                outstream.write(bytes([257 - chunk[0]]))
+            except ValueError:
+                logging.debug('chunk %s count value out of bounds', chunk)
+                if chunk[0] == 1:
+                    ship(['literal', chunk[1]])
+                else:
+                    raise
             outstream.write(chunk[1])
     def purge(chunks, final=False):
         '''
