@@ -115,15 +115,9 @@ def decode(filename, outfilename=None, # pylint: disable=too-many-arguments
                 # pylint: disable=unsubscriptable-object  # None or bytes
                 try:
                     codevalue = lastvalue + lastvalue[0:1]
-                except (TypeError, IndexError):
-                    # we assume it's netpbm- or imgtops-generated raster
-                    # data that uses a primitive 8-bit-only run length
-                    # encoding.
-                    if GLOBAL['bitlength'] == 8:
-                        raise
-                    logging.error('starting over with minbits=maxbits=8')
-                    return decode(filename, outfilename, specialcodes,
-                                  8, 8, codegenerator)
+                except (TypeError, IndexError) as failure:
+                    logging.error('This may be PackBits data, not LZW')
+                    raise ValueError('Invalid LZW data') from failure
             if codevalue is not None:
                 logging.debug('writing out %d bytes', len(codevalue))
                 outfile.write(codevalue)
