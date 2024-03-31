@@ -134,13 +134,17 @@ def pack(instream=None, outstream=None, buffersize=4096):
 
 if __name__ == '__main__':
     # pylint: disable=consider-using-with
+    sys.argv += [None]  # in case action not specified
     sys.argv += [None, None]  # use stdin and stdout by default
-    if sys.argv[1] and sys.argv[1] != '-':
-        sys.argv[1] = open(sys.argv[1], 'rb')
-    else:
-        sys.argv[1] = None
+    if sys.argv[1] not in ('pack', 'unpack'):
+        logging.warning('usage: %s unpack test.rle -', sys.argv[0])
+        raise ValueError('Must specify either "pack" or "unpack"')
     if sys.argv[2] and sys.argv[2] != '-':
-        sys.argv[2] = open(sys.argv[2], 'wb')
+        sys.argv[2] = open(sys.argv[2], 'rb')
     else:
         sys.argv[2] = None
-    unpack(*sys.argv[1:3])
+    if sys.argv[3] and sys.argv[3] != '-':
+        sys.argv[3] = open(sys.argv[3], 'wb')
+    else:
+        sys.argv[3] = None
+    eval(sys.argv[1])(*sys.argv[2:4])  # pylint: disable=eval-used
