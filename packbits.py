@@ -33,7 +33,7 @@ def unpack(instream=None, outstream=None):
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
     # "Loop until you get the number of unpacked bytes you are expecting"
-    # we don't know this information, so we just read until EOF
+    # (this information isn't available so we just read the whole thing)
     # "Read the next source byte into n."
     # pylint: disable=invalid-name  # using pseudocode naming, not snake_case
     while (nextbyte := instream.read(1)) != b'':
