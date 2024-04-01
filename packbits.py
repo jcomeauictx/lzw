@@ -105,7 +105,7 @@ def pack(instream=None, outstream=None, buffersize=4096):
                 if chunk[0] == 1:
                     ship([1, chunk[1]], level + 1)
                 else:
-                    logging.warn('skipping empty chunk %s', chunk)
+                    logging.warning('skipping empty chunk %s', chunk)
         else:  # chunk[0] == 0 to mark EOD
             outstream.write(chunk[1])
     def purge(chunks, final=False):
