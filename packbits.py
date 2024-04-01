@@ -93,7 +93,7 @@ def pack(instream=None, outstream=None, buffersize=4096):
             if len(chunk[1]):  # don't ship empty literals
                 outstream.write(bytes([len(chunk[1]) - 1]))
                 outstream.write(chunk[1])
-        else:
+        elif chunk[0] != 0:
             while chunk[0] > 128:
                 ship([128, chunk[1]], level + 1)
                 chunk[0] -= 128
@@ -106,14 +106,16 @@ def pack(instream=None, outstream=None, buffersize=4096):
                     ship([1, chunk[1]], level + 1)
                 else:
                     logging.warn('skipping empty chunk %s', chunk)
+        else:  # chunk[0] == 0 to mark EOD
+            outstream.write(chunk[1])
     def purge(chunks, final=False):
         '''
         iterate over chunks and ship according to the rules above.
         '''
         logging.debug('purging chunks %s', chunks)
         if final:
-            # append noop as EOF marker (PLRM3 page 142)
-            chunks.append([1, b'\x80'])
+            # append noop as EOD marker (PLRM3 page 142)
+            chunks.append([0, b'\x80'])
             # append empty chunk so following loop sends all real chunks
             chunks.append([1, b''])
         for chunk in chunks[:-1]:
