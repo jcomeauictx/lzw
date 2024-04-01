@@ -84,7 +84,7 @@ def pack(instream=None, outstream=None, buffersize=4096):
     outstream = outstream or sys.stdout.buffer
     bytestring = b''
     chunks = [[1, b'']]  # 1 here doesn't mean count, it means 'literal'
-    def ship(chunk):
+    def ship(chunk, level=1):
         '''
         it's packed, now ship it over outstream.
         '''
@@ -95,17 +95,17 @@ def pack(instream=None, outstream=None, buffersize=4096):
                 outstream.write(chunk[1])
         else:
             while chunk[0] > 128:
-                ship([128, chunk[1]])
+                ship([128, chunk[1]], level + 1)
                 chunk[0] -= 128
             try:
                 outstream.write(bytes([257 - chunk[0]]))
+                outstream.write(chunk[1])
             except ValueError:
                 logging.debug('chunk %s count value out of bounds', chunk)
                 if chunk[0] == 1:
-                    ship([1, chunk[1]])
+                    ship([1, chunk[1]], level + 1)
                 else:
-                    raise
-            outstream.write(chunk[1])
+                    logging.warn('skipping empty chunk %s', chunk)
     def purge(chunks, final=False):
         '''
         iterate over chunks and ship according to the rules above.
