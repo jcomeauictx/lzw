@@ -12,24 +12,23 @@ GLOBAL = {
 
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
 
-def nextcode(filename):
+def nextcode(instream=sys.stdin.buffer):
     '''
     get next code from lzw-compressed data
 
     requires Python 3.8 or better for 'walrus' (:=) operator
     '''
-    instream = ''
-    with open(filename, 'rb') as infile:
-        while byte := infile.read(1):
-            rawbyte = ord(byte)
-            logging.debug('input byte %s: 0x%x', byte, rawbyte)
-            instream += format(rawbyte, '08b')
-            if len(instream) >= GLOBAL['bitlength']:
-                bincode = instream[:GLOBAL['bitlength']]
-                instream = instream[GLOBAL['bitlength']:]
-                code = int(bincode, 2)
-                logging.debug('nextcode: 0x%x (%d) %s', code, code, bincode)
-                yield code
+    bitstream = ''
+    while byte := instream.read(1):
+        rawbyte = ord(byte)
+        logging.debug('input byte %s: 0x%x', byte, rawbyte)
+        bitstream += format(rawbyte, '08b')
+        if len(bitstream) >= GLOBAL['bitlength']:
+            bincode = bitstream[:GLOBAL['bitlength']]
+            bitstream = bitstream[GLOBAL['bitlength']:]
+            code = int(bincode, 2)
+            logging.debug('nextcode: 0x%x (%d) %s', code, code, bincode)
+            yield code
 
 def newdict(specialcodes=True):
     '''
@@ -46,7 +45,7 @@ def newdict(specialcodes=True):
     #logging.debug('codedict: %s', codedict)
     return codedict
 
-def decode(filename, outfilename=None, # pylint: disable=too-many-arguments
+def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
            specialcodes=True, minbits=9, maxbits=12, codegenerator=None):
     '''
     Decode LZW-encoded data
@@ -101,59 +100,76 @@ def decode(filename, outfilename=None, # pylint: disable=too-many-arguments
     >>> check.index(b'---   Heraclitus  [540 -- 475 BCE]')
     46
     '''
-    codegenerator = codegenerator or nextcode(filename)
+    instream = instream or sys.stdin.buffer
+    outstream = outstream or sys.stdout.buffer
+    codegenerator = codegenerator or nextcode(instream)
     codedict = newdict(specialcodes)
-    outfilename = outfilename or filename + '.raw'
     # global bitlength used if unspecified by caller
     minbits = minbits or GLOBAL['bitlength']
     GLOBAL['bitlength'] = minbits  # otherwise minbits overrides global
     maxbits = maxbits or sys.maxsize
-    with open(outfilename, 'wb') as outfile:
-        lastvalue = codevalue = None
-        for code in codegenerator:
+    lastvalue = codevalue = None
+    for code in codegenerator:
+        try:
+            codevalue = codedict[code]
+        except KeyError:  # code wasn't in dict
+            # pylint: disable=unsubscriptable-object  # None or bytes
             try:
-                codevalue = codedict[code]
-            except KeyError:  # code wasn't in dict
-                # pylint: disable=unsubscriptable-object  # None or bytes
-                try:
-                    codevalue = lastvalue + lastvalue[0:1]
-                except (TypeError, IndexError) as failure:
-                    logging.error('This may be PackBits data, not LZW')
-                    raise ValueError('Invalid LZW data') from failure
-            if codevalue is not None:
-                logging.debug('writing out %d bytes', len(codevalue))
-                outfile.write(codevalue)
-                #outfile.flush()  # in case of error down the line
-                # now check if code is all ones except for LSB
-                # and raise bitlength if so
-                newkey = len(codedict)
-                try:
-                    codedict[newkey] = lastvalue + codevalue[0:1]
-                    logging.debug('added 0x%x: ...%s to codedict', newkey,
-                                  codedict[newkey][-50:])
-                except TypeError:  # first output after clearcode? no lastvalue
-                    logging.debug('not adding anything to dict after first'
-                                  ' output byte %s', codevalue)
-                if (len(codedict) + 1).bit_length() > (newkey + 1).bit_length():
-                    if GLOBAL['bitlength'] < maxbits:
-                        logging.debug(
-                            'increasing bitlength to %d at dictsize %d',
-                            GLOBAL['bitlength'] + 1, len(codedict))
-                        GLOBAL['bitlength'] += 1
-                lastvalue = codevalue
-            else:  # CLEAR_CODE or END_OF_INFO_CODE
-                logging.debug('special code found, resetting dictionary')
-                codedict.clear()
-                codedict.update(newdict(specialcodes))
-                GLOBAL['bitlength'] = minbits
-                lastvalue = None
-                if code == END_OF_INFO_CODE:
-                    logging.debug('end of info code found, exiting')
-                    return None
+                codevalue = lastvalue + lastvalue[0:1]
+            except (TypeError, IndexError) as failure:
+                logging.error('This may be PackBits data, not LZW')
+                raise ValueError('Invalid LZW data') from failure
+        if codevalue is not None:
+            logging.debug('writing out %d bytes', len(codevalue))
+            outstream.write(codevalue)
+            #outstream.flush()  # in case of error down the line
+            # now check if code is all ones except for LSB
+            # and raise bitlength if so
+            newkey = len(codedict)
+            try:
+                codedict[newkey] = lastvalue + codevalue[0:1]
+                logging.debug('added 0x%x: ...%s to codedict', newkey,
+                              codedict[newkey][-50:])
+            except TypeError:  # first output after clearcode? no lastvalue
+                logging.debug('not adding anything to dict after first'
+                              ' output byte %s', codevalue)
+            if (len(codedict) + 1).bit_length() > (newkey + 1).bit_length():
+                if GLOBAL['bitlength'] < maxbits:
+                    logging.debug(
+                        'increasing bitlength to %d at dictsize %d',
+                        GLOBAL['bitlength'] + 1, len(codedict))
+                    GLOBAL['bitlength'] += 1
+            lastvalue = codevalue
+        else:  # CLEAR_CODE or END_OF_INFO_CODE
+            logging.debug('special code found, resetting dictionary')
+            codedict.clear()
+            codedict.update(newdict(specialcodes))
+            GLOBAL['bitlength'] = minbits
+            lastvalue = None
+            if code == END_OF_INFO_CODE:
+                logging.debug('end of info code found, exiting')
+                return None
     return None
 
-def encode():
+def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
+           specialcodes=True, minbits=9, maxbits=12, stripsize=8192):
     '''
+    Encode data using Lempel-Ziv-Welch compression
+
+    From page 58 of TIFF6.pdf:
+
+    Each strip is compressed independently. We strongly recommend that
+    RowsPerStrip be chosen such that each strip contains about 8K bytes
+    before compression. We want to keep the strips small enough so that
+    the compressed and uncompressed versions of the strip can be kept
+    entirely in memory, even on small machines, but are large enough to
+    maintain nearly optimal compression ratios.
+    '''
+    instream = instream or sys.stdin.buffer
+    outstream = outstream or sys.stdout.buffer
+
+def packstrip(strip=b'', outstream=None):
+    r'''
     Encode data using Lempel-Ziv-Welch compression
 
     Pseudocode from p. 58 of TIFF6.pdf follows. It (or at least what shows
@@ -166,7 +182,7 @@ def encode():
         [S] = the empty string;
         for each character in the strip {
             K = GetNextCharacter();
-            if +K is in the string table {
+            if [S]+K is in the string table {
                 [S] = [S]+K; /* string concatenation */
             } else {
                 WriteCode (CodeFromString([S]));
@@ -176,7 +192,52 @@ def encode():
         } /* end of for loop */
         WriteCode (CodeFromString([S]));
         WriteCode (EndOfInformation);
+
+    >>> from io import BytesIO
+    >>> outstream = BytesIO()
+    >>> packstrip(BytesIO(b'\x00\x01\02\xff\xfe\xfd'), outstream)
+    >>> outstream.getvalue()
     '''
+    outstream = outstream or sys.stdout.buffer
+    # InitializeStringTable();
+    codedict = newdict(specialcodes)
+    # WriteCode(ClearCode);
+    outstream.write(CLEAR_CODE)
+    # [S] = the empty string;
+    encoded = b''
+    # for each character in the strip {
+    #     K = GetNextCharacter();
+    for byte in strip:
+    #     if [S]+K is in the string table {
+    #         [S] = [S]+K; /* string concatenation */
+        if encoded + byte in codedict:
+            encoded += byte
+    #     } else {
+    #         WriteCode (CodeFromString([S]));
+    #         AddTableEntry([S]+K);
+    #         [S] = K;
+        else:
+            outstream.write(codedict[encoded])
+            codedict[encoded + byte] = encoded + byte
+            encoded = byte
+    # WriteCode (CodeFromString([S]));
+    # WriteCode (EndOfInformation);
+    outstream.write(encoded + END_OF_INFO_CODE)
+
 if __name__ == '__main__':
-    decode(*sys.argv[1:])
+    # pylint: disable=consider-using-with
+    sys.argv += [None]  # in case action not specified
+    sys.argv += [None, None]  # use stdin and stdout by default
+    if sys.argv[1] not in ('encode', 'decode'):
+        logging.warning('usage: %s unpack test.rle -', sys.argv[0])
+        raise ValueError('Must specify either "encode" or "decode"')
+    if sys.argv[2] and sys.argv[2] != '-':
+        sys.argv[2] = open(sys.argv[2], 'rb')
+    else:
+        sys.argv[2] = None
+    if sys.argv[3] and sys.argv[3] != '-':
+        sys.argv[3] = open(sys.argv[3], 'wb')
+    else:
+        sys.argv[3] = None
+    eval(sys.argv[1])(*sys.argv[2:4])  # pylint: disable=eval-used
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
