@@ -33,7 +33,7 @@ def nextcode(filename):
 
 def newdict(specialcodes=True):
     '''
-    build clean starting dict for LZW decompression
+    build clean starting dict for LZW compression or decompression
 
     `specialcodes` means that the CLEAR_CODE (256) and END_OF_INFO_CODE (257)
     from https://github.com/joeatwork/python-lzw are in use, which is the
@@ -49,7 +49,9 @@ def newdict(specialcodes=True):
 def decode(filename, outfilename=None, # pylint: disable=too-many-arguments
            specialcodes=True, minbits=9, maxbits=12, codegenerator=None):
     '''
-        adapted from pseudocode on page 61 of TIFF6.pdf
+    Decode LZW-encoded data
+
+    adapted from pseudocode on page 61 of TIFF6.pdf
 
 
         while ((Code = GetNextCode()) != EoiCode) {
@@ -150,6 +152,31 @@ def decode(filename, outfilename=None, # pylint: disable=too-many-arguments
                     return None
     return None
 
+def encode():
+    '''
+    Encode data using Lempel-Ziv-Welch compression
+
+    Pseudocode from p. 58 of TIFF6.pdf follows. It (or at least what shows
+    when viewing the PDF in the Chromium browser) is basically unusable
+    due to missing variable names, which are guessed in square brackets
+    below, but may help the implementation:
+
+        InitializeStringTable();
+        WriteCode(ClearCode);
+        [S] = the empty string;
+        for each character in the strip {
+            K = GetNextCharacter();
+            if +K is in the string table {
+                [S] = [S]+K; /* string concatenation */
+            } else {
+                WriteCode (CodeFromString([S]));
+                AddTableEntry([S]+K);
+                [S] = K;
+            }
+        } /* end of for loop */
+        WriteCode (CodeFromString([S]));
+        WriteCode (EndOfInformation);
+    '''
 if __name__ == '__main__':
     decode(*sys.argv[1:])
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
