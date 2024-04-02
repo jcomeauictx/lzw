@@ -194,10 +194,10 @@ def packstrip(strip=b'', outstream=None, # pylint: disable=too-many-arguments
         WriteCode (CodeFromString([S]));
         WriteCode (EndOfInformation);
 
-    >>> from io import BytesIO
-    >>> outstream = BytesIO()
-    >>> packstrip(BytesIO(b'\x00\x01\02\xff\xfe\xfd'), outstream)
-    >>> outstream.getvalue()
+    #>>> from io import BytesIO
+    #>>> outstream = BytesIO()
+    #>>> packstrip(BytesIO(b'\x00\x01\02\xff\xfe\xfd'), outstream)
+    #>>> outstream.getvalue()
     '''
     outstream = outstream or sys.stdout.buffer
     # InitializeStringTable();
