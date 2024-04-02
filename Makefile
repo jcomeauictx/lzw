@@ -18,8 +18,8 @@ all: lzw.pylint lzw.doctest card.view
 	sed '1,/^ID$$/d' $< | sed '/^EI Q$$/,$$d' >> $@
 %.lzw %.rle: %.a85
 	cat $< | $(ASCII85) -d > $@
-%.rgb: lzw.py %.lzw
-	./$+ $@  #2>/tmp/lzw.log
+%.rgb:  %.lzw
+	./lzw.py decode $< $@  #2>/tmp/lzw.log
 %.view: %.rgb %.gs
 	WIDTH=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$4}' $*.gs); \
 	HEIGHT=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$5}' $*.gs); \
