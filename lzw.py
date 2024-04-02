@@ -79,22 +79,26 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         } /* end of while loop */
 
     Test case from https://rosettacode.org/wiki/LZW_compression
+    >>> from io import BytesIO
+    >>> outstream = BytesIO()
     >>> codes = [84,79,66,69,79,82,78,79,84,256,258,260,265,259,261,263]
-    >>> decode('/tmp/', None, False, 9, 9, iter(codes))
-    >>> open('/tmp/.raw', 'rb').read()
+    >>> decode(None, outstream, False, 9, 9, iter(codes))
+    >>> outstream.getvalue()
     b'TOBEORNOTTOBEORTOBEORNOT'
+    >>> outstream = BytesIO()
     >>> codes = [84,111,32,98,101,32,111,114,32,110,111,116,32,116,257,259,
     ...     268,104,97,267,105,115,272,260,113,117,101,115,116,105,111,110,33]
-    >>> decode('/tmp/', None, False, 9, 9, iter(codes))
-    >>> open('/tmp/.raw', 'rb').read()
+    >>> decode(None, outstream, False, 9, 9, iter(codes))
+    >>> outstream.getvalue()
     b'To be or not to be that is the question!'
+    >>> outstream = BytesIO()
     >>> codes = [34,84,104,101,114,101,32,105,115,32,110,111,116,104,
     ...     105,110,103,32,112,259,109,97,110,101,110,116,32,101,120,
     ...     99,101,112,281,99,104,277,103,101,46,34,32,296,45,298,296,
     ...     32,72,259,97,99,108,105,116,117,264,32,91,53,52,48,32,299,
     ...     52,55,53,32,66,67,69,93]
-    >>> decode('/tmp/', None, False, 9, 9, iter(codes))
-    >>> check = open('/tmp/.raw', 'rb').read()
+    >>> decode(None, outstream, False, 9, 9, iter(codes))
+    >>> check = outstream.getvalue()
     >>> check.startswith(b'"There is nothing permanent except change."')
     True
     >>> check.index(b'---   Heraclitus  [540 -- 475 BCE]')
@@ -168,7 +172,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
 
-def packstrip(strip=b'', outstream=None):
+def packstrip(strip=b'', outstream=None, # pylint: disable=too-many-arguments
+              specialcodes=True, minbits=9, maxbits=12, stripsize=8192):
     r'''
     Encode data using Lempel-Ziv-Welch compression
 
@@ -200,9 +205,9 @@ def packstrip(strip=b'', outstream=None):
     '''
     outstream = outstream or sys.stdout.buffer
     # InitializeStringTable();
-    codedict = newdict(specialcodes)
+    codedict = dict(map(reversed, newdict(specialcodes).items()))
     # WriteCode(ClearCode);
-    outstream.write(CLEAR_CODE)
+    outstream.write(bytes([CLEAR_CODE]))
     # [S] = the empty string;
     encoded = b''
     # for each character in the strip {
