@@ -6,29 +6,10 @@ import sys, logging  # pylint: disable=multiple-imports
 
 CLEAR_CODE = 256
 END_OF_INFO_CODE = 257
-GLOBAL = {
-    'bitlength': 9,
-}
+MINBITS = 9
 
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
 
-def nextcode(instream=sys.stdin.buffer):
-    '''
-    get next code from lzw-compressed data
-
-    requires Python 3.8 or better for 'walrus' (:=) operator
-    '''
-    bitstream = ''
-    while byte := instream.read(1):
-        rawbyte = ord(byte)
-        logging.debug('input byte %s: 0x%x', byte, rawbyte)
-        bitstream += format(rawbyte, '08b')
-        if len(bitstream) >= GLOBAL['bitlength']:
-            bincode = bitstream[:GLOBAL['bitlength']]
-            bitstream = bitstream[GLOBAL['bitlength']:]
-            code = int(bincode, 2)
-            logging.debug('nextcode: 0x%x (%d) %s', code, code, bincode)
-            yield code
 
 def newdict(specialcodes=True):
     '''
@@ -104,13 +85,28 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     >>> check.index(b'---   Heraclitus  [540 -- 475 BCE]')
     46
     '''
+    def nextcode(instream):
+        '''
+        get next code from lzw-compressed data
+
+        requires Python 3.8 or better for 'walrus' (:=) operator
+        '''
+        bitstream = ''
+        while byte := instream.read(1):
+            rawbyte = ord(byte)
+            logging.debug('input byte %s: 0x%x', byte, rawbyte)
+            bitstream += format(rawbyte, '08b')
+            if len(bitstream) >= bitlength:
+                bincode = bitstream[:bitlength]
+                bitstream = bitstream[bitlength:]
+                code = int(bincode, 2)
+                logging.debug('nextcode: 0x%x (%d) %s', code, code, bincode)
+                yield code
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
     codegenerator = codegenerator or nextcode(instream)
     codedict = newdict(specialcodes)
-    # global bitlength used if unspecified by caller
-    minbits = minbits or GLOBAL['bitlength']
-    GLOBAL['bitlength'] = minbits  # otherwise minbits overrides global
+    minbits = bitlength = minbits or MINBITS
     maxbits = maxbits or sys.maxsize
     lastvalue = codevalue = None
     for code in codegenerator:
@@ -138,17 +134,17 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 logging.debug('not adding anything to dict after first'
                               ' output byte %s', codevalue)
             if (len(codedict) + 1).bit_length() > (newkey + 1).bit_length():
-                if GLOBAL['bitlength'] < maxbits:
+                if bitlength < maxbits:
                     logging.debug(
                         'increasing bitlength to %d at dictsize %d',
-                        GLOBAL['bitlength'] + 1, len(codedict))
-                    GLOBAL['bitlength'] += 1
+                        bitlength + 1, len(codedict))
+                    bitlength += 1
             lastvalue = codevalue
         else:  # CLEAR_CODE or END_OF_INFO_CODE
             logging.debug('special code found, resetting dictionary')
             codedict.clear()
             codedict.update(newdict(specialcodes))
-            GLOBAL['bitlength'] = minbits
+            bitlength = minbits
             lastvalue = None
             if code == END_OF_INFO_CODE:
                 logging.debug('end of info code found, exiting')
