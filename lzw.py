@@ -2,11 +2,11 @@
 '''
 Simple LZW decoder for PDF reverse engineering
 '''
-import sys, logging  # pylint: disable=multiple-imports
+import sys, struct, logging  # pylint: disable=multiple-imports
 
 CLEAR_CODE = 256
 END_OF_INFO_CODE = 257
-MINBITS = 9
+MINBITS, MAXBITS = 9, 12
 
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
 
@@ -106,8 +106,8 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     outstream = outstream or sys.stdout.buffer
     codegenerator = codegenerator or nextcode(instream)
     codedict = newdict(specialcodes)
-    minbits = bitlength = minbits or MINBITS
-    maxbits = maxbits or sys.maxsize
+    minbits = bitlength = (minbits or MINBITS)
+    maxbits = maxbits or MAXBITS
     lastvalue = codevalue = None
     for code in codegenerator:
         try:
@@ -152,7 +152,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
 
 def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
            specialcodes=True, minbits=9, maxbits=12, stripsize=8192):
-    '''
+    r'''
     Encode data using Lempel-Ziv-Welch compression
 
     From page 58 of TIFF6.pdf:
@@ -163,6 +163,12 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     the compressed and uncompressed versions of the strip can be kept
     entirely in memory, even on small machines, but are large enough to
     maintain nearly optimal compression ratios.
+
+        >>> from io import BytesIO
+        >>> instream = BytesIO(b'\x07\x07\x07\x08\x08\x07\x07\x06\x06')
+        >>> outstream = BytesIO()
+        >>> encode(instream, outstream)
+        >>> outstream.getvalue()
     '''
     def packstrip(strip=b''):
         r'''
@@ -188,15 +194,9 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             } /* end of for loop */
             WriteCode (CodeFromString(Omega));
             WriteCode (EndOfInformation);
-
-        >>> from io import BytesIO
-        >>> outstream = BytesIO()
-        >>> packstrip(BytesIO(b'\x00\x01\02\xff\xfe\xfd'), outstream)
-        >>> outstream.getvalue()
         '''
-        outstream = outstream or sys.stdout.buffer
         # InitializeStringTable();
-        codedict = dict(map(reversed, newdict(specialcodes).items()))
+        code_from_string = dict(map(reversed, newdict(specialcodes).items()))
         # WriteCode(ClearCode);
         bitstream = ''
         def write_code(number):
@@ -206,7 +206,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             high-order bits go first
             '''
             nonlocal bitstream
-            bitstream += '{0:0{}b}'.format(number, bitlength)
+            logging.debug('%s %s %s', bitstream, number, bitlength)
+            bitstream += '{0:0{1}b}'.format(number, bitlength)
             while len(bitstream) >= 8:
                 byte = int(bitstream[0:8], 2)
                 outstream.write(bytes([byte]))
@@ -216,27 +217,30 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         prefix = b''
         # for each character in the strip {
         #     K = GetNextCharacter();
-        for byte in strip:
+        # https://stackoverflow.com/a/57543519/493161
+        for byte in struct.unpack('{:d}c'.format(len(strip)), strip):
         #     if Omega+K is in the string table {
         #         Omega = Omega+K; /* string concatenation */
-            if prefix + byte in codedict:
+            if prefix + byte in code_from_string:
                 prefix += byte
         #     } else {
         #         WriteCode (CodeFromString(Omega));
         #         AddTableEntry(Omega+K);
         #         Omega = K;
             else:
-                write_code(codedict[prefix])
+                write_code(code_from_string[prefix])
                 # must add 2 to all codes to account for Clear and EOI codes
-                codedict[prefix + byte] = len(codedict) + 2
+                code_from_string[prefix + byte] = len(code_from_string) + 2
                 prefix = byte
         # WriteCode (CodeFromString(Omega));
         # WriteCode (EndOfInformation);
-        write_code(prefix)
+        write_code(code_from_string[prefix])
         write_code(END_OF_INFO_CODE)
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
-    while (strip := instream.read(buffersize)) != '':
+    minbits = bitlength = (minbits or MINBITS)
+    maxbits = maxbits or MAXBITS
+    while (strip := instream.read(stripsize)) != '':
         packstrip(strip)
             
 if __name__ == '__main__':
