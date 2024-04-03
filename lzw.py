@@ -189,10 +189,10 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             WriteCode (CodeFromString(Omega));
             WriteCode (EndOfInformation);
 
-        #>>> from io import BytesIO
-        #>>> outstream = BytesIO()
-        #>>> packstrip(BytesIO(b'\x00\x01\02\xff\xfe\xfd'), outstream)
-        #>>> outstream.getvalue()
+        >>> from io import BytesIO
+        >>> outstream = BytesIO()
+        >>> packstrip(BytesIO(b'\x00\x01\02\xff\xfe\xfd'), outstream)
+        >>> outstream.getvalue()
         '''
         outstream = outstream or sys.stdout.buffer
         # InitializeStringTable();
@@ -200,9 +200,18 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         # WriteCode(ClearCode);
         bitstream = ''
         def write_code(number):
-            code = codedict(number)
-            bitstream += 
-        outstream.write(bytes([CLEAR_CODE]))
+            '''
+            pack number into bits with current bitlength and ship out bytes
+
+            high-order bits go first
+            '''
+            nonlocal bitstream
+            bitstream += '{0:0{}b}'.format(number, bitlength)
+            while len(bitstream) >= 8:
+                byte = int(bitstream[0:8], 2)
+                outstream.write(bytes([byte]))
+                bitstream = bitstream[8:]
+        write_code(CLEAR_CODE)
         # Omega (I'm using `prefix`] = the empty string;
         prefix = b''
         # for each character in the strip {
@@ -217,12 +226,14 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         #         AddTableEntry(Omega+K);
         #         Omega = K;
             else:
-                outstream.write(codedict[encoded])
-                codedict[encoded + byte] = encoded + byte
-                encoded = byte
+                write_code(codedict[prefix])
+                # must add 2 to all codes to account for Clear and EOI codes
+                codedict[prefix + byte] = len(codedict) + 2
+                prefix = byte
         # WriteCode (CodeFromString(Omega));
         # WriteCode (EndOfInformation);
-        outstream.write(prefix + END_OF_INFO_CODE)
+        write_code(prefix)
+        write_code(END_OF_INFO_CODE)
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
     while (strip := instream.read(buffersize)) != '':
