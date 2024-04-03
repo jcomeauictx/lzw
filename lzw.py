@@ -122,7 +122,6 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         if codevalue is not None:
             logging.debug('writing out %d bytes', len(codevalue))
             outstream.write(codevalue)
-            #outstream.flush()  # in case of error down the line
             # now check if code is all ones except for LSB
             # and raise bitlength if so
             newkey = len(codedict)
@@ -165,66 +164,70 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     entirely in memory, even on small machines, but are large enough to
     maintain nearly optimal compression ratios.
     '''
+    def packstrip(strip=b''):
+        r'''
+        Encode data using Lempel-Ziv-Welch compression
+
+        Pseudocode from p. 58 of TIFF6.pdf follows. Find a copy that has
+        the Greek Omega character in it for the prefix variable; it's
+        missing in most of the copies out there. I'm showing it as Omega
+        below.
+
+            InitializeStringTable();
+            WriteCode(ClearCode);
+            Omega = the empty string;
+            for each character in the strip {
+                K = GetNextCharacter();
+                if Omega+K is in the string table {
+                    Omega = Omega+K; /* string concatenation */
+                } else {
+                    WriteCode (CodeFromString(Omega);
+                    AddTableEntry(Omega+K);
+                    Omega = K;
+                }
+            } /* end of for loop */
+            WriteCode (CodeFromString(Omega));
+            WriteCode (EndOfInformation);
+
+        #>>> from io import BytesIO
+        #>>> outstream = BytesIO()
+        #>>> packstrip(BytesIO(b'\x00\x01\02\xff\xfe\xfd'), outstream)
+        #>>> outstream.getvalue()
+        '''
+        outstream = outstream or sys.stdout.buffer
+        # InitializeStringTable();
+        codedict = dict(map(reversed, newdict(specialcodes).items()))
+        # WriteCode(ClearCode);
+        bitstream = ''
+        def write_code(number):
+            code = codedict(number)
+            bitstream += 
+        outstream.write(bytes([CLEAR_CODE]))
+        # Omega (I'm using `prefix`] = the empty string;
+        prefix = b''
+        # for each character in the strip {
+        #     K = GetNextCharacter();
+        for byte in strip:
+        #     if Omega+K is in the string table {
+        #         Omega = Omega+K; /* string concatenation */
+            if prefix + byte in codedict:
+                prefix += byte
+        #     } else {
+        #         WriteCode (CodeFromString(Omega));
+        #         AddTableEntry(Omega+K);
+        #         Omega = K;
+            else:
+                outstream.write(codedict[encoded])
+                codedict[encoded + byte] = encoded + byte
+                encoded = byte
+        # WriteCode (CodeFromString(Omega));
+        # WriteCode (EndOfInformation);
+        outstream.write(prefix + END_OF_INFO_CODE)
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
-
-def packstrip(strip=b'', outstream=None, # pylint: disable=too-many-arguments
-              specialcodes=True, minbits=9, maxbits=12, stripsize=8192):
-    r'''
-    Encode data using Lempel-Ziv-Welch compression
-
-    Pseudocode from p. 58 of TIFF6.pdf follows. It (or at least what shows
-    when viewing the PDF in the Chromium browser) is basically unusable
-    due to missing variable names, which are guessed in square brackets
-    below, but may help the implementation:
-
-        InitializeStringTable();
-        WriteCode(ClearCode);
-        [S] = the empty string;
-        for each character in the strip {
-            K = GetNextCharacter();
-            if [S]+K is in the string table {
-                [S] = [S]+K; /* string concatenation */
-            } else {
-                WriteCode (CodeFromString([S]));
-                AddTableEntry([S]+K);
-                [S] = K;
-            }
-        } /* end of for loop */
-        WriteCode (CodeFromString([S]));
-        WriteCode (EndOfInformation);
-
-    #>>> from io import BytesIO
-    #>>> outstream = BytesIO()
-    #>>> packstrip(BytesIO(b'\x00\x01\02\xff\xfe\xfd'), outstream)
-    #>>> outstream.getvalue()
-    '''
-    outstream = outstream or sys.stdout.buffer
-    # InitializeStringTable();
-    codedict = dict(map(reversed, newdict(specialcodes).items()))
-    # WriteCode(ClearCode);
-    outstream.write(bytes([CLEAR_CODE]))
-    # [S] = the empty string;
-    encoded = b''
-    # for each character in the strip {
-    #     K = GetNextCharacter();
-    for byte in strip:
-    #     if [S]+K is in the string table {
-    #         [S] = [S]+K; /* string concatenation */
-        if encoded + byte in codedict:
-            encoded += byte
-    #     } else {
-    #         WriteCode (CodeFromString([S]));
-    #         AddTableEntry([S]+K);
-    #         [S] = K;
-        else:
-            outstream.write(codedict[encoded])
-            codedict[encoded + byte] = encoded + byte
-            encoded = byte
-    # WriteCode (CodeFromString([S]));
-    # WriteCode (EndOfInformation);
-    outstream.write(encoded + END_OF_INFO_CODE)
-
+    while (strip := instream.read(buffersize)) != '':
+        packstrip(strip)
+            
 if __name__ == '__main__':
     # pylint: disable=consider-using-with
     sys.argv += [None]  # in case action not specified
