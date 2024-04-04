@@ -195,10 +195,6 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             WriteCode (CodeFromString(Omega));
             WriteCode (EndOfInformation);
         '''
-        # InitializeStringTable();
-        code_from_string = dict(map(reversed, newdict(specialcodes).items()))
-        # WriteCode(ClearCode);
-        bitstream = ''
         def write_code(number):
             '''
             pack number into bits with current bitlength and ship out bytes
@@ -212,6 +208,35 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 byte = int(bitstream[0:8], 2)
                 outstream.write(bytes([byte]))
                 bitstream = bitstream[8:]
+
+        def add_table_entry(entry):
+            '''
+            add a new bytes-to-integer-code mapping
+
+            just before doubling table size, increment bitlength;
+            i.e. after entering the 511th entry, raise it from 9 to 10;
+            after entering the 1023d entry, raise it from 10 to 11;
+            and after entering the 2047, raise it from 11 to 12.
+            just before final entry (index 4094), write out 12-bit
+            ClearCode, and reinit the table.
+            '''
+            nonlocal bitlength
+            if not entry:
+                return
+            # get length table will be *after* adding entry
+            new_dict_length = len(code_from_string) + 1
+            # new code will be *current* table length plus the two places
+            # saved for CLEAR_CODE and END_OF_INFO_CODE
+            newcode = new_dict_length + 1
+            code_from_string[entry] = newcode
+            bitlength += (new_dict_length + 1 == 2 ** bitlength)
+            if new_dict_length == 2 ** maxbits - 2:
+                write_code(END_OF_INFO_CODE)
+
+        # InitializeStringTable();
+        code_from_string = dict(map(reversed, newdict(specialcodes).items()))
+        # WriteCode(ClearCode);
+        bitstream = ''
         write_code(CLEAR_CODE)
         # Omega (I'm using `prefix`] = the empty string;
         prefix = b''
@@ -219,6 +244,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         #     K = GetNextCharacter();
         # https://stackoverflow.com/a/57543519/493161
         for byte in struct.unpack('{:d}c'.format(len(strip)), strip):
+            logging.debug('processing byte: %s', byte)
         #     if Omega+K is in the string table {
         #         Omega = Omega+K; /* string concatenation */
             if prefix + byte in code_from_string:
@@ -230,10 +256,11 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             else:
                 write_code(code_from_string[prefix])
                 # must add 2 to all codes to account for Clear and EOI codes
-                code_from_string[prefix + byte] = len(code_from_string) + 2
+                add_table_entry(prefix + byte)
                 prefix = byte
         # WriteCode (CodeFromString(Omega));
         # WriteCode (EndOfInformation);
+        logging.debug('finishing strip, byte=%s', byte)
         write_code(code_from_string[prefix])
         write_code(END_OF_INFO_CODE)
     instream = instream or sys.stdin.buffer
