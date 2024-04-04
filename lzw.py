@@ -9,7 +9,7 @@ END_OF_INFO_CODE = 257
 MINBITS, MAXBITS = 9, 12
 
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
-
+# pylint: disable=consider-using-f-string  # leave this for later
 
 def newdict(specialcodes=True):
     '''
@@ -242,21 +242,26 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             nonlocal bitlength, code_from_string
             if not entry:
                 return
-            # get length table will be *after* adding entry
-            new_dict_length = len(code_from_string) + 1
-            # new code will be *current* table length plus the two places
-            # saved for CLEAR_CODE and END_OF_INFO_CODE
-            newcode = new_dict_length + 1
+            # table is built without entries for ClearCode and
+            # EndOfInformation, so it starts at 256 elements exactly.
+            # the first new entry's code then has to be 258,
+            # which is len(table)+2.
+            dict_length = len(code_from_string)
+            newcode = dict_length + 2
             code_from_string[entry] = newcode
-            bitlength += (new_dict_length + 1 == 2 ** bitlength)
-            if new_dict_length == 2 ** maxbits - 2:
+            if dict_length + 1 == 2 ** bitlength and bitlength < maxbits:
+                logging.debug('raising bitlength to %d at table size %d',
+                              bitlength + 1, dict_length)
+                bitlength += 1
+            elif dict_length == 2 ** maxbits - 2:
+                logging.debug('clearing table at size %d', dict_length)
                 write_code(CLEAR_CODE)
                 code_from_string = initialize_string_table()
                 bitlength = minbits
 
         logging.debug('beginning packstrip(%s)', strip)
         # InitializeStringTable();
-        code_from_string = initialize_string_table();
+        code_from_string = initialize_string_table()
         # WriteCode(ClearCode);
         bitstream = ''
         write_code(CLEAR_CODE)
@@ -294,7 +299,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     while (strip := instream.read(stripsize)) != b'':
         packstrip(strip)
     logging.debug('ending lzw.encode()')
-            
+
 if __name__ == '__main__':
     # pylint: disable=consider-using-with
     sys.argv += [None]  # in case action not specified
