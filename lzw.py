@@ -208,7 +208,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             high-order bits go first
             '''
             nonlocal bitstream
-            logging.debug('write_code: %s %s %s', bitstream, number, bitlength)
+            logging.debug('write_code %s: bitstream="%s", bitlength=%s',
+                          number, bitstream, bitlength)
             if number is not None:
                 bitstream += '{0:0{1}b}'.format(number, bitlength)
             while len(bitstream) >= 8:
@@ -247,6 +248,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 code_from_string = initialize_string_table()
                 bitlength = minbits
 
+        logging.debug('beginning packstrip(%s)', strip)
         # InitializeStringTable();
         code_from_string = initialize_string_table();
         # WriteCode(ClearCode);
@@ -277,12 +279,15 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         logging.debug('finishing strip, prefix=%s', prefix)
         write_code(code_from_string.get(prefix, None))
         write_code(END_OF_INFO_CODE)
+        logging.debug('ending packstrip()')
+    logging.debug('beginning lzw.encode()')
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
     minbits = bitlength = (minbits or MINBITS)
     maxbits = maxbits or MAXBITS
     while (strip := instream.read(stripsize)) != '':
         packstrip(strip)
+    logging.debug('ending lzw.encode()')
             
 if __name__ == '__main__':
     # pylint: disable=consider-using-with
