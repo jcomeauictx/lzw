@@ -151,7 +151,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     return None
 
 def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
-           specialcodes=True, minbits=9, maxbits=12, stripsize=8192):
+           minbits=9, maxbits=12, stripsize=8192):
     r'''
     Encode data using Lempel-Ziv-Welch compression
 
@@ -238,6 +238,10 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             and after entering the 2047, raise it from 11 to 12.
             just before final entry (index 4094), write out 12-bit
             ClearCode, and reinit the table.
+
+            NOTE that in the above paragraph, "table" size includes the
+            two special codes, which are *not* actually present in the
+            code_from_string dict.
             '''
             nonlocal bitlength, code_from_string
             logging.debug('add_table_entry(%r)', entry)
@@ -252,11 +256,11 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             logging.debug('code_from_string: %s, length: %d, newcode: %d',
                           code_from_string, len(code_from_string), newcode)
             code_from_string[entry] = newcode
-            if dict_length + 1 == 2 ** bitlength and bitlength < maxbits:
+            if newcode + 1 == 2 ** bitlength and bitlength < maxbits:
                 logging.debug('raising bitlength to %d at table size %d',
                               bitlength + 1, dict_length)
                 bitlength += 1
-            elif dict_length == 2 ** maxbits - 2:
+            elif newcode == 2 ** maxbits - 2:
                 logging.debug('clearing table at size %d', dict_length)
                 write_code(CLEAR_CODE)
                 code_from_string = initialize_string_table()
