@@ -2,7 +2,7 @@
 '''
 Simple LZW decoder for PDF reverse engineering
 '''
-import sys, struct, logging  # pylint: disable=multiple-imports
+import sys, os, struct, logging  # pylint: disable=multiple-imports
 
 CLEAR_CODE = 256
 END_OF_INFO_CODE = 257
@@ -10,6 +10,12 @@ MINBITS, MAXBITS = 9, 12
 
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
 # pylint: disable=consider-using-f-string  # leave this for later
+
+def doctest_debug(*args):  # pylint: disable=unused-argument
+    '''
+    redefined if running doctest module
+    '''
+    return
 
 def newdict(specialcodes=True):
     '''
@@ -23,7 +29,7 @@ def newdict(specialcodes=True):
     if specialcodes:
         codedict[CLEAR_CODE] = None
         codedict[END_OF_INFO_CODE] = None
-    #logging.debug('codedict: %s', codedict)
+    #doctest_debug('codedict: %s', codedict)
     return codedict
 
 def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
@@ -94,13 +100,13 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         bitstream = ''
         while byte := instream.read(1):
             rawbyte = ord(byte)
-            logging.debug('input byte %s: 0x%x', byte, rawbyte)
+            doctest_debug('input byte %s: 0x%x', byte, rawbyte)
             bitstream += format(rawbyte, '08b')
             if len(bitstream) >= bitlength:
                 bincode = bitstream[:bitlength]
                 bitstream = bitstream[bitlength:]
                 code = int(bincode, 2)
-                logging.debug('nextcode: 0x%x (%d) %s', code, code, bincode)
+                doctest_debug('nextcode: 0x%x (%d) %s', code, code, bincode)
                 yield code
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
@@ -120,33 +126,33 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 logging.error('This may be PackBits data, not LZW')
                 raise ValueError('Invalid LZW data') from failure
         if codevalue is not None:
-            logging.debug('writing out %d bytes', len(codevalue))
+            doctest_debug('writing out %d bytes', len(codevalue))
             outstream.write(codevalue)
             # now check if code is all ones except for LSB
             # and raise bitlength if so
             newkey = len(codedict)
             try:
                 codedict[newkey] = lastvalue + codevalue[0:1]
-                logging.debug('added 0x%x: ...%s to codedict', newkey,
+                doctest_debug('added 0x%x: ...%s to codedict', newkey,
                               codedict[newkey][-50:])
             except TypeError:  # first output after clearcode? no lastvalue
-                logging.debug('not adding anything to dict after first'
+                doctest_debug('not adding anything to dict after first'
                               ' output byte %s', codevalue)
             if (len(codedict) + 1).bit_length() > (newkey + 1).bit_length():
                 if bitlength < maxbits:
-                    logging.debug(
+                    doctest_debug(
                         'increasing bitlength to %d at dictsize %d',
                         bitlength + 1, len(codedict))
                     bitlength += 1
             lastvalue = codevalue
         else:  # CLEAR_CODE or END_OF_INFO_CODE
-            logging.debug('special code found, resetting dictionary')
+            doctest_debug('special code found, resetting dictionary')
             codedict.clear()
             codedict.update(newdict(specialcodes))
             bitlength = minbits
             lastvalue = None
             if code == END_OF_INFO_CODE:
-                logging.debug('end of info code found, exiting')
+                doctest_debug('end of info code found, exiting')
                 return None
     return None
 
@@ -214,12 +220,12 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             high-order bits go first
             '''
             nonlocal bitstream
-            logging.debug('write_code %s: bitstream="%s", bitlength=%s',
+            doctest_debug('write_code %s: bitstream="%s", bitlength=%s',
                           number, bitstream, bitlength)
             if number is not None:
                 bitstream += '{0:0{1}b}'.format(number, bitlength)
             while len(bitstream) >= 8:
-                logging.debug('writing leftmost 8 bits of %s', bitstream)
+                doctest_debug('writing leftmost 8 bits of %s', bitstream)
                 byte = int(bitstream[0:8], 2)
                 outstream.write(bytes([byte]))
                 bitstream = bitstream[8:]
@@ -244,7 +250,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             code_from_string dict.
             '''
             nonlocal bitlength, code_from_string
-            logging.debug('add_table_entry(%r)', entry)
+            doctest_debug('add_table_entry(%r)', entry)
             if not entry:
                 return
             # table is built without entries for ClearCode and
@@ -253,7 +259,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             # which is len(table)+2.
             dict_length = len(code_from_string)
             newcode = dict_length + 2
-            logging.debug('code_from_string: %s, length: %d, newcode: %d',
+            doctest_debug('code_from_string: %s, length: %d, newcode: %d',
                           code_from_string, len(code_from_string), newcode)
             code_from_string[entry] = newcode
             if newcode + 1 == 2 ** bitlength and bitlength < maxbits:
@@ -266,7 +272,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 code_from_string = initialize_string_table()
                 bitlength = minbits
 
-        logging.debug('beginning packstrip(%s)', strip)
+        doctest_debug('beginning packstrip(%s)', strip)
         # InitializeStringTable();
         code_from_string = initialize_string_table()
         # WriteCode(ClearCode);
@@ -278,7 +284,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         #     K = GetNextCharacter();
         # https://stackoverflow.com/a/57543519/493161
         for byte in struct.unpack('{:d}c'.format(len(strip)), strip):
-            logging.debug('processing byte: %s', byte)
+            doctest_debug('processing byte: %s', byte)
         #     if Omega+K is in the string table {
         #         Omega = Omega+K; /* string concatenation */
             if prefix + byte in code_from_string:
@@ -294,10 +300,10 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 prefix = byte
         # WriteCode (CodeFromString(Omega));
         # WriteCode (EndOfInformation);
-        logging.debug('finishing strip, prefix=%s', prefix)
+        doctest_debug('finishing strip, prefix=%s', prefix)
         write_code(code_from_string.get(prefix, None))
         write_code(END_OF_INFO_CODE)
-        logging.debug('ending packstrip()')
+        doctest_debug('ending packstrip()')
     logging.debug('beginning lzw.encode()')
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
@@ -307,20 +313,33 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         packstrip(strip)
     logging.debug('ending lzw.encode()')
 
-if __name__ == '__main__':
+def dispatch(allowed, args, minargs):
+    '''
+    simple dispatcher for scripts whose first arg is an action
+    '''
     # pylint: disable=consider-using-with
-    sys.argv += [None]  # in case action not specified
-    sys.argv += [None, None]  # use stdin and stdout by default
-    if sys.argv[1] not in ('encode', 'decode'):
-        logging.warning('usage: %s unpack test.rle -', sys.argv[0])
-        raise ValueError('Must specify either "encode" or "decode"')
-    if sys.argv[2] and sys.argv[2] != '-':
-        sys.argv[2] = open(sys.argv[2], 'rb')
+    argcount = len(args)
+    args += [None] * (minargs - (argcount - 1))
+    if args[1] not in allowed + ('print',):  # allow `print` for testing
+        logging.warning('usage: %s %s file.dat -', args[0], allowed[0])
+        raise ValueError('Action %s must be in %s' % (args[1], list(allowed)))
+    if args[2] and args[2] != '-':
+        args[2] = open(args[2], 'rb')
     else:
-        sys.argv[2] = None
-    if sys.argv[3] and sys.argv[3] != '-':
-        sys.argv[3] = open(sys.argv[3], 'wb')
+        args[2] = None
+    if args[3] and args[3] != '-':
+        args[3] = open(args[3], 'wb')
     else:
-        sys.argv[3] = None
-    eval(sys.argv[1])(*sys.argv[2:4])  # pylint: disable=eval-used
+        args[3] = None
+    eval(args[1])(*args[2:argcount])  # pylint: disable=eval-used
+
+if __name__ == '__main__':
+    dispatch(('encode', 'decode'), sys.argv, 3)
+elif os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest':
+    # pylint: disable=function-redefined
+    def doctest_debug(*args):
+        '''
+        use logging.debug only during doctest
+        '''
+        logging.debug(*args)
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
