@@ -169,6 +169,12 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         >>> outstream = BytesIO()
         >>> encode(instream, outstream)
         >>> outstream.getvalue()
+        b'\x80\x01\xe0`\x80D\x0c\x0c\x06\x80\x80'
+        >>> instream = BytesIO(b'\x80\x01\xe0`\x80D\x0c\x0c\x06\x80\x80')
+        >>> outstream = BytesIO()
+        >>> decode(instream, outstream)
+        >>> outstream.getvalue()
+        b'\x07\x07\x07\x08\x08\x07\x07\x08\x06\x06'
     '''
     def packstrip(strip=b''):
         r'''
@@ -285,7 +291,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     outstream = outstream or sys.stdout.buffer
     minbits = bitlength = (minbits or MINBITS)
     maxbits = maxbits or MAXBITS
-    while (strip := instream.read(stripsize)) != '':
+    while (strip := instream.read(stripsize)) != b'':
         packstrip(strip)
     logging.debug('ending lzw.encode()')
             
