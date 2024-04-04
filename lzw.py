@@ -169,12 +169,12 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         >>> outstream = BytesIO()
         >>> encode(instream, outstream)
         >>> outstream.getvalue()
-        b'\x80\x01\xe0`\x80D\x0c\x0c\x06\x80\x80'
-        >>> instream = BytesIO(b'\x80\x01\xe0`\x80D\x0c\x0c\x06\x80\x80')
+        b'\x80\x01\xe0@\x80D\x08\x0c\x06\x80\x80'
+        >>> instream = BytesIO(outstream.getvalue())
         >>> outstream = BytesIO()
         >>> decode(instream, outstream)
         >>> outstream.getvalue()
-        b'\x07\x07\x07\x08\x08\x07\x07\x08\x06\x06'
+        b'\x07\x07\x07\x08\x08\x07\x07\x06\x06'
     '''
     def packstrip(strip=b''):
         r'''
@@ -205,7 +205,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             '''
             opposite of the one used for decode: strings map to code numbers
             '''
-            return dict(map(reversed, newdict(specialcodes).items()))
+            return dict(map(reversed, newdict(False).items()))
 
         def write_code(number):
             '''
@@ -240,6 +240,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             ClearCode, and reinit the table.
             '''
             nonlocal bitlength, code_from_string
+            logging.debug('add_table_entry(%r)', entry)
             if not entry:
                 return
             # table is built without entries for ClearCode and
@@ -248,6 +249,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             # which is len(table)+2.
             dict_length = len(code_from_string)
             newcode = dict_length + 2
+            logging.debug('code_from_string: %s, length: %d, newcode: %d',
+                          code_from_string, len(code_from_string), newcode)
             code_from_string[entry] = newcode
             if dict_length + 1 == 2 ** bitlength and bitlength < maxbits:
                 logging.debug('raising bitlength to %d at table size %d',
