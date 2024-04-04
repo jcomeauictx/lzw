@@ -60,3 +60,6 @@ env:
 %.rgb.reunpacked: %.rle.repacked
 	python3 packbits.py unpack $< $@
 packtest: $(HOME)/tmp/sample.rgb.reunpacked
+%.lzw.check: %.rgb
+	python3 lzw.py encode $< $@
+	diff $*.lzw $@
