@@ -205,6 +205,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             logging.debug('%s %s %s', bitstream, number, bitlength)
             bitstream += '{0:0{1}b}'.format(number, bitlength)
             while len(bitstream) >= 8:
+                logging.debug('writing leftmost 8 bits of %s', bitstream)
                 byte = int(bitstream[0:8], 2)
                 outstream.write(bytes([byte]))
                 bitstream = bitstream[8:]
@@ -260,7 +261,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 prefix = byte
         # WriteCode (CodeFromString(Omega));
         # WriteCode (EndOfInformation);
-        logging.debug('finishing strip, byte=%s', byte)
+        logging.debug('finishing strip, prefix=%s', prefix)
         write_code(code_from_string[prefix])
         write_code(END_OF_INFO_CODE)
     instream = instream or sys.stdin.buffer
