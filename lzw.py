@@ -195,6 +195,12 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             WriteCode (CodeFromString(Omega));
             WriteCode (EndOfInformation);
         '''
+        def initialize_string_table():
+            '''
+            opposite of the one used for decode: strings map to code numbers
+            '''
+            return dict(map(reversed, newdict(specialcodes).items()))
+
         def write_code(number):
             '''
             pack number into bits with current bitlength and ship out bytes
@@ -202,13 +208,18 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             high-order bits go first
             '''
             nonlocal bitstream
-            logging.debug('%s %s %s', bitstream, number, bitlength)
-            bitstream += '{0:0{1}b}'.format(number, bitlength)
+            logging.debug('write_code: %s %s %s', bitstream, number, bitlength)
+            if number is not None:
+                bitstream += '{0:0{1}b}'.format(number, bitlength)
             while len(bitstream) >= 8:
                 logging.debug('writing leftmost 8 bits of %s', bitstream)
                 byte = int(bitstream[0:8], 2)
                 outstream.write(bytes([byte]))
                 bitstream = bitstream[8:]
+            if number == END_OF_INFO_CODE:
+                # at end of strip, pack up any straggler bits and ship
+                bitstream = bitstream.ljust(8, '0')
+                outstream.write(bytes([int(bitstream, 2)]))
 
         def add_table_entry(entry):
             '''
@@ -221,7 +232,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             just before final entry (index 4094), write out 12-bit
             ClearCode, and reinit the table.
             '''
-            nonlocal bitlength
+            nonlocal bitlength, code_from_string
             if not entry:
                 return
             # get length table will be *after* adding entry
@@ -232,10 +243,12 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             code_from_string[entry] = newcode
             bitlength += (new_dict_length + 1 == 2 ** bitlength)
             if new_dict_length == 2 ** maxbits - 2:
-                write_code(END_OF_INFO_CODE)
+                write_code(CLEAR_CODE)
+                code_from_string = initialize_string_table()
+                bitlength = minbits
 
         # InitializeStringTable();
-        code_from_string = dict(map(reversed, newdict(specialcodes).items()))
+        code_from_string = initialize_string_table();
         # WriteCode(ClearCode);
         bitstream = ''
         write_code(CLEAR_CODE)
@@ -255,14 +268,14 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         #         AddTableEntry(Omega+K);
         #         Omega = K;
             else:
-                write_code(code_from_string[prefix])
+                write_code(code_from_string.get(prefix, None))
                 # must add 2 to all codes to account for Clear and EOI codes
                 add_table_entry(prefix + byte)
                 prefix = byte
         # WriteCode (CodeFromString(Omega));
         # WriteCode (EndOfInformation);
         logging.debug('finishing strip, prefix=%s', prefix)
-        write_code(code_from_string[prefix])
+        write_code(code_from_string.get(prefix, None))
         write_code(END_OF_INFO_CODE)
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
