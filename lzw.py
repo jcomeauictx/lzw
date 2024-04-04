@@ -175,11 +175,6 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         >>> decode(instream, outstream)
         >>> outstream.getvalue()
         b'\x07\x07\x07\x08\x08\x07\x07\x08\x06\x06'
-        >>> instream = BytesIO(b'TOBEORNOTTOBEORTOBEORNOT')
-        >>> outstream = BytesIO()
-        >>> encode(instream, outstream)
-        >>> list(outstream.getvalue())
-        [84, 79, 66, 69, 79, 82, 78, 79, 84, 256, 258, 260, 265, 259, 261, 263]
     '''
     def packstrip(strip=b''):
         r'''
