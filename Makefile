@@ -1,4 +1,5 @@
 SHELL := /bin/bash  # we're using Bashisms
+BYTECOUNT ?= 1000
 ASCII85 := $(shell PATH=$(PATH):. \
 	     which ascii85 ascii85.py 2>/dev/null | head -n 1)
 ifneq ($(SHOW_ENV),)
@@ -66,3 +67,6 @@ packtest: $(HOME)/tmp/sample.rgb.reunpacked
 %.rgb.check: %.lzw.check
 	python3 lzw.py decode $< $@
 	diff $*.rgb $@
+%.diff: %.check
+	diff -y <(head -c $(BYTECOUNT) $* | xxd) \
+	 <(head -c $(BYTECOUNT) $< | xxd)

@@ -113,7 +113,8 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
 
         requires Python 3.8 or better for 'walrus' (:=) operator
         '''
-        bitstream = ''
+        nonlocal bitstream
+        logging.debug('nextcode(): bitstream=%r', bitstream)
         while byte := instream.read(1):
             rawbyte = ord(byte)
             doctest_debug('input byte %s: 0x%x', byte, rawbyte)
@@ -131,6 +132,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 yield code
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
+    bitstream = ''
     codegenerator = codegenerator or nextcode(instream)
     codedict = newdict(specialcodes)
     minbits = bitlength = (minbits or MINBITS)
@@ -253,7 +255,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 byte = int(bitstream[0:8], 2)
                 outstream.write(bytes([byte]))
                 bitstream = bitstream[8:]
-            if number == END_OF_INFO_CODE:
+            if number == END_OF_INFO_CODE and bitstream:
                 # at end of strip, pack up any straggler bits and ship
                 bitstream = bitstream.ljust(8, '0')
                 doctest_debug('writing final bits of stream %s', bitstream)
@@ -289,10 +291,10 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             code_from_string[entry] = newcode
             if newcode + 1 == 2 ** bitlength and bitlength < maxbits:
                 logging.debug('raising bitlength to %d at table size %d',
-                              bitlength + 1, dict_length)
+                              bitlength + 1, dict_length + 2)
                 bitlength += 1
             elif newcode == 2 ** maxbits - 2:
-                logging.debug('clearing table at size %d', dict_length)
+                logging.debug('clearing table at size %d', dict_length + 2)
                 write_code(CLEAR_CODE)
                 code_from_string.clear()
                 code_from_string.update(initialize_string_table())
@@ -305,7 +307,6 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         # InitializeStringTable();
         code_from_string = initialize_string_table()
         # WriteCode(ClearCode);
-        bitstream = ''
         write_code(CLEAR_CODE)
         # Omega (I'm using `prefix`] = the empty string;
         prefix = b''
@@ -336,10 +337,12 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         doctest_debug('ending packstrip()')
         return
     logging.debug('beginning lzw.encode()')
+    logging.debug('EOI_IS_EOD: %s', EOI_IS_EOD)
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
     minbits = bitlength = (minbits or MINBITS)
     maxbits = maxbits or MAXBITS
+    bitstream = ''
     while (strip := instream.read(stripsize)) != b'':
         packstrip(strip)
     if EOI_IS_EOD:
