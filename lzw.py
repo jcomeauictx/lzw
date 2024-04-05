@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
 
 def doctest_debug(*args):  # pylint: disable=unused-argument
     '''
-    redefined if running doctest module
+    redefined below if running doctest module
     '''
     return
 
@@ -232,6 +232,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             if number == END_OF_INFO_CODE:
                 # at end of strip, pack up any straggler bits and ship
                 bitstream = bitstream.ljust(8, '0')
+                doctest_debug('writing final bits of stream %s', bitstream)
                 outstream.write(bytes([int(bitstream, 2)]))
 
         def add_table_entry(entry):
@@ -249,7 +250,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             two special codes, which are *not* actually present in the
             code_from_string dict.
             '''
-            nonlocal bitlength, code_from_string
+            nonlocal bitlength
             doctest_debug('add_table_entry(%r)', entry)
             if not entry:
                 return
@@ -259,8 +260,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             # which is len(table)+2.
             dict_length = len(code_from_string)
             newcode = dict_length + 2
-            doctest_debug('code_from_string: %s, length: %d, newcode: %d',
-                          code_from_string, len(code_from_string), newcode)
+            doctest_debug('code_from_string length %d, newcode: %d',
+                          len(code_from_string), newcode)
             code_from_string[entry] = newcode
             if newcode + 1 == 2 ** bitlength and bitlength < maxbits:
                 logging.debug('raising bitlength to %d at table size %d',
@@ -269,7 +270,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             elif newcode == 2 ** maxbits - 2:
                 logging.debug('clearing table at size %d', dict_length)
                 write_code(CLEAR_CODE)
-                code_from_string = initialize_string_table()
+                code_from_string.clear()
+                code_from_string.update(initialize_string_table())
                 bitlength = minbits
 
         doctest_debug('beginning packstrip(%s)', strip)
@@ -284,7 +286,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         #     K = GetNextCharacter();
         # https://stackoverflow.com/a/57543519/493161
         for byte in struct.unpack('{:d}c'.format(len(strip)), strip):
-            doctest_debug('processing byte: %s', byte)
+            #doctest_debug('processing byte: %s', byte)
         #     if Omega+K is in the string table {
         #         Omega = Omega+K; /* string concatenation */
             if prefix + byte in code_from_string:
