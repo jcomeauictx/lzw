@@ -1,12 +1,23 @@
 #!/usr/bin/python3 -OO
 '''
 Simple LZW decoder for PDF reverse engineering
+
+LZW documentation in TIFF6.pdf says strips of 8k characters should be
+ended with EndOfInformation code. But that isn't the case for any PDF
+images I've found, which only have the code at the end of *all* the data.
+if EOI_IS_EOD is set to a nonempty string, the decoder will terminate on
+seeing it, and the encoder will not append it until the end of all the
+data.
+
+If EOI_IS_EOD is left False, the decoder will treat EndOfInformation as
+a ClearCode, and the encoder will send it at the end of each strip.
 '''
 import sys, os, struct, logging  # pylint: disable=multiple-imports
 
 CLEAR_CODE = 256
 END_OF_INFO_CODE = 257
 MINBITS, MAXBITS = 9, 12
+EOI_IS_EOD = os.getenv('EOI_IS_EOD')
 
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
 # pylint: disable=consider-using-f-string  # leave this for later
@@ -151,7 +162,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             codedict.update(newdict(specialcodes))
             bitlength = minbits
             lastvalue = None
-            if code == END_OF_INFO_CODE:
+            if code == END_OF_INFO_CODE and EOI_IS_EOD:
                 doctest_debug('end of info code found, exiting')
                 return None
     return None
