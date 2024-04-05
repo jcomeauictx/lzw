@@ -11,6 +11,10 @@ data.
 
 If EOI_IS_EOD is left False, the decoder will treat EndOfInformation as
 a ClearCode, and the encoder will send it at the end of each strip.
+
+On page 61: "Every LZW-compressed strip must begin on a byte boundary."
+So, the bitstream should be cleared after sending, and after receiving,
+EndOfInformation.
 '''
 import sys, os, struct, logging  # pylint: disable=multiple-imports
 
