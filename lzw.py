@@ -328,7 +328,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         # WriteCode (EndOfInformation);
         doctest_debug('finishing strip, prefix=%s', prefix)
         write_code(code_from_string.get(prefix, None))
-        write_code(END_OF_INFO_CODE)
+        if EOI_IS_EOD:
+            write_code(END_OF_INFO_CODE)
         doctest_debug('ending packstrip()')
     logging.debug('beginning lzw.encode()')
     instream = instream or sys.stdin.buffer
@@ -337,6 +338,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     maxbits = maxbits or MAXBITS
     while (strip := instream.read(stripsize)) != b'':
         packstrip(strip)
+    if not EOI_IS_EOD:
+        write_code(END_OF_INFO_CODE)
     logging.debug('ending lzw.encode()')
 
 def dispatch(allowed, args, minargs, binary=True):
