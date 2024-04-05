@@ -313,30 +313,45 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         packstrip(strip)
     logging.debug('ending lzw.encode()')
 
-def dispatch(allowed, args, minargs):
+def dispatch(allowed, args, minargs, binary=True):
     '''
     simple dispatcher for scripts whose first arg is an action
+
+    2nd and 3rd args are, respectively, input and output files,
+    with '-' serving as stdin and stdout, respectively.
+
+    `binary` indicates the files should be opened as byte streams
+
+    we leave it to the dispatched routine to interpret None as
+    sys.stdin, sys.stdout, sys.stdin.buffer, etc., as appropriate.
     '''
     # pylint: disable=consider-using-with
     argcount = len(args)
     args += [None] * (minargs - (argcount - 1))
+    binary = 'b' if binary else ''
     if args[1] not in allowed + ('print',):  # allow `print` for testing
         logging.warning('usage: %s %s file.dat -', args[0], allowed[0])
         raise ValueError('Action %s must be in %s' % (args[1], list(allowed)))
     if args[2] and args[2] != '-':
-        args[2] = open(args[2], 'rb')
+        args[2] = open(args[2], 'r' + binary)
     else:
         args[2] = None
     if args[3] and args[3] != '-':
-        args[3] = open(args[3], 'wb')
+        args[3] = open(args[3], 'w' + binary)
     else:
         args[3] = None
     eval(args[1])(*args[2:argcount])  # pylint: disable=eval-used
 
+# pylint: disable=function-redefined
 if __name__ == '__main__':
+    if os.getenv('PYTHON_DEBUGGING'):
+        def doctest_debug(*args):
+            '''
+            use logging.debug only during doctest
+            '''
+            logging.debug(*args)
     dispatch(('encode', 'decode'), sys.argv, 3)
 elif os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest':
-    # pylint: disable=function-redefined
     def doctest_debug(*args):
         '''
         use logging.debug only during doctest
