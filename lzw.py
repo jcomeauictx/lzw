@@ -118,6 +118,11 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 bitstream = bitstream[bitlength:]
                 code = int(bincode, 2)
                 doctest_debug('nextcode: 0x%x (%d) %s', code, code, bincode)
+                if code == END_OF_INFO_CODE:
+                    if bitstream.rstrip('0'):
+                        logging.info('bitstream: %s', bitstream)
+                        raise ValueError('nonzero bits remaining after EOI')
+                    bitstream = ''
                 yield code
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
@@ -162,9 +167,12 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             codedict.update(newdict(specialcodes))
             bitlength = minbits
             lastvalue = None
-            if code == END_OF_INFO_CODE and EOI_IS_EOD:
-                doctest_debug('end of info code found, exiting')
-                return None
+            if code == END_OF_INFO_CODE:
+                if EOI_IS_EOD:
+                    doctest_debug('end of info code found, exiting')
+                    return None
+                else:
+                    doctest_debug('ignoring EndOfInformation code')
     return None
 
 def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
