@@ -102,6 +102,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     >>> check.index(b'---   Heraclitus  [540 -- 475 BCE]')
     46
     '''
+    # pylint: disable=too-many-statements
     def nextcode(instream):
         '''
         get next code from lzw-compressed data
@@ -171,8 +172,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 if EOI_IS_EOD:
                     doctest_debug('end of info code found, exiting')
                     return None
-                else:
-                    doctest_debug('ignoring EndOfInformation code')
+                doctest_debug('ignoring EndOfInformation code')
     return None
 
 def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
@@ -201,6 +201,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         >>> outstream.getvalue()
         b'\x07\x07\x07\x08\x08\x07\x07\x06\x06'
     '''
+    # pylint: disable=too-many-statements
     def packstrip(strip=b''):
         r'''
         Encode data using Lempel-Ziv-Welch compression
