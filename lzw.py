@@ -124,7 +124,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 code = int(bincode, 2)
                 doctest_debug('nextcode: 0x%x (%d) %s', code, code, bincode)
                 if code == END_OF_INFO_CODE:
-                    if bitstream.rstrip('0'):
+                    if bitstream.strip('0'):
                         logging.info('bitstream: %s', bitstream)
                         raise ValueError('nonzero bits remaining after EOI')
                     bitstream = ''
@@ -299,6 +299,9 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 bitlength = minbits
 
         doctest_debug('beginning packstrip(%s)', strip)
+        if strip == b'' and EOI_IS_EOD:
+            write_code(END_OF_INFO_CODE)
+            return
         # InitializeStringTable();
         code_from_string = initialize_string_table()
         # WriteCode(ClearCode);
@@ -328,9 +331,10 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         # WriteCode (EndOfInformation);
         doctest_debug('finishing strip, prefix=%s', prefix)
         write_code(code_from_string.get(prefix, None))
-        if EOI_IS_EOD:
+        if not EOI_IS_EOD:
             write_code(END_OF_INFO_CODE)
         doctest_debug('ending packstrip()')
+        return
     logging.debug('beginning lzw.encode()')
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
@@ -338,8 +342,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     maxbits = maxbits or MAXBITS
     while (strip := instream.read(stripsize)) != b'':
         packstrip(strip)
-    if not EOI_IS_EOD:
-        write_code(END_OF_INFO_CODE)
+    if EOI_IS_EOD:
+        packstrip(b'')
     logging.debug('ending lzw.encode()')
 
 def dispatch(allowed, args, minargs, binary=True):
