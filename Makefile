@@ -63,3 +63,6 @@ packtest: $(HOME)/tmp/sample.rgb.reunpacked
 %.lzw.check: %.rgb
 	python3 lzw.py encode $< $@
 	diff $*.lzw $@
+%.rgb.check: %.lzw.check
+	python3 lzw.py decode $< $@
+	diff $*.rgb $@
