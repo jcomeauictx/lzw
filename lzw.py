@@ -157,7 +157,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             try:
                 codedict[newkey] = lastvalue + codevalue[0:1]
                 doctest_debug('added 0x%x: ...%s to codedict', newkey,
-                              codedict[newkey][-50:])
+                              codedict[newkey][-16:])
             except TypeError:  # first output after clearcode? no lastvalue
                 doctest_debug('not adding anything to dict after first'
                               ' output byte %s', codevalue)
@@ -261,6 +261,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 bitstream = bitstream.ljust(8, '0')
                 doctest_debug('writing final bits of stream %s', bitstream)
                 outstream.write(bytes([int(bitstream, 2)]))
+                bitstream = ''
 
         def add_table_entry(entry):
             '''
@@ -278,7 +279,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             code_from_string dict.
             '''
             nonlocal bitlength
-            doctest_debug('add_table_entry(%r)', entry)
+            doctest_debug('add_table_entry(...%r) (length %d)',
+                          entry[-16:], len(entry))
             if not entry:
                 return
             # table is built without entries for ClearCode and
@@ -301,11 +303,14 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 code_from_string.update(initialize_string_table())
                 bitlength = minbits
 
-        doctest_debug('beginning packstrip(%s)', strip)
         nonlocal prefix, code_from_string
+        doctest_debug('beginning packstrip(...%s), length %d, prefix length %d',
+                      strip[-16:], len(strip), len(prefix))
         if strip == b'':
             if EOI_IS_EOD:  # if not, EOI was written at end of previous strip
+                doctest_debug('writing END_OF_INFO code at end of file')
                 write_code(END_OF_INFO_CODE)
+            doctest_debug('ending packstrip on empty strip')
             return
         if code_from_string is None or not EOI_IS_EOD:
             # (TIFF6 spec says each strip should reinit table and
@@ -317,7 +322,10 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             # WriteCode(ClearCode);
             write_code(CLEAR_CODE)
             # Omega (I'm using `prefix`] = the empty string;
-            prefix = b''
+            # NOTE: the caller (encode) sets this. Prefix must be
+            # carried over from one strip to the next.
+            # So, leave this commented out.
+            #prefix = b''
         # for each character in the strip {
         #     K = GetNextCharacter();
         # https://stackoverflow.com/a/57543519/493161
@@ -338,12 +346,15 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 prefix = byte
         # WriteCode (CodeFromString(Omega));
         # WriteCode (EndOfInformation);
-        doctest_debug('finishing strip, prefix=%s', prefix)
+        doctest_debug('finishing strip, prefix=...%s, length %d',
+                      prefix[-16:], len(prefix))
         write_code(code_from_string.get(prefix, None))
         if not EOI_IS_EOD:
+            doctest_debug('writing END_OF_INFO code at end of strip')
             write_code(END_OF_INFO_CODE)
             code_from_string = None  # to force reset on next packstrip()
-        doctest_debug('ending packstrip()')
+        doctest_debug('ending packstrip(...%s), length %d',
+                      strip[-16:], len(strip))
         return
     logging.debug('beginning lzw.encode()')
     logging.debug('EOI_IS_EOD: %s', EOI_IS_EOD)
@@ -351,7 +362,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     outstream = outstream or sys.stdout.buffer
     minbits = bitlength = (minbits or MINBITS)
     maxbits = maxbits or MAXBITS
-    bitstream, prefix = '', ''
+    bitstream, prefix = '', b''
     code_from_string = None
     while (strip := instream.read(stripsize)) != b'':
         packstrip(strip)
