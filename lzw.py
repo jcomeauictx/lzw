@@ -302,15 +302,22 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 bitlength = minbits
 
         doctest_debug('beginning packstrip(%s)', strip)
-        if strip == b'' and EOI_IS_EOD:
-            write_code(END_OF_INFO_CODE)
+        nonlocal prefix, code_from_string
+        if strip == b'':
+            if EOI_IS_EOD:  # if not, EOI was written at end of previous strip
+                write_code(END_OF_INFO_CODE)
             return
-        # InitializeStringTable();
-        code_from_string = initialize_string_table()
-        # WriteCode(ClearCode);
-        write_code(CLEAR_CODE)
-        # Omega (I'm using `prefix`] = the empty string;
-        prefix = b''
+        if code_from_string is None or not EOI_IS_EOD:
+            # (TIFF6 spec says each strip should reinit table and
+            # send ClearCode, but many PDF images don't show this
+            # in use. So we only do it on first call, and after
+            # table fills up.)
+            # InitializeStringTable();
+            code_from_string = initialize_string_table()
+            # WriteCode(ClearCode);
+            write_code(CLEAR_CODE)
+            # Omega (I'm using `prefix`] = the empty string;
+            prefix = b''
         # for each character in the strip {
         #     K = GetNextCharacter();
         # https://stackoverflow.com/a/57543519/493161
@@ -335,6 +342,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         write_code(code_from_string.get(prefix, None))
         if not EOI_IS_EOD:
             write_code(END_OF_INFO_CODE)
+            code_from_string = None  # to force reset on next packstrip()
         doctest_debug('ending packstrip()')
         return
     logging.debug('beginning lzw.encode()')
@@ -343,7 +351,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     outstream = outstream or sys.stdout.buffer
     minbits = bitlength = (minbits or MINBITS)
     maxbits = maxbits or MAXBITS
-    bitstream = ''
+    bitstream, prefix = '', ''
+    code_from_string = None
     while (strip := instream.read(stripsize)) != b'':
         packstrip(strip)
     if EOI_IS_EOD:
