@@ -251,9 +251,10 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             if number is not None:
                 bitstream += '{0:0{1}b}'.format(number, bitlength)
             while len(bitstream) >= 8:
-                doctest_debug('writing leftmost 8 bits of %s', bitstream)
-                byte = int(bitstream[0:8], 2)
-                outstream.write(bytes([byte]))
+                byte = bytes([int(bitstream[0:8], 2)])
+                doctest_debug('writing leftmost 8 bits of %s (0x%02x)',
+                              bitstream, ord(byte))
+                outstream.write(byte)
                 bitstream = bitstream[8:]
             if number == END_OF_INFO_CODE and bitstream:
                 # at end of strip, pack up any straggler bits and ship
@@ -286,8 +287,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             # which is len(table)+2.
             dict_length = len(code_from_string)
             newcode = dict_length + 2
-            doctest_debug('code_from_string length %d, newcode: %d',
-                          len(code_from_string), newcode)
+            doctest_debug('code_from_string length %d, newcode: %d (0x%02x)',
+                          len(code_from_string), newcode, newcode)
             code_from_string[entry] = newcode
             if newcode + 1 == 2 ** bitlength and bitlength < maxbits:
                 logging.debug('raising bitlength to %d at table size %d',
