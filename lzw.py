@@ -348,8 +348,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         # WriteCode (EndOfInformation);
         doctest_debug('finishing strip, prefix=...%s, length %d',
                       prefix[-16:], len(prefix))
-        write_code(code_from_string.get(prefix, None))
         if not EOI_IS_EOD:
+            write_code(code_from_string.get(prefix, None))
             doctest_debug('writing END_OF_INFO code at end of strip')
             write_code(END_OF_INFO_CODE)
             code_from_string = None  # to force reset on next packstrip()
