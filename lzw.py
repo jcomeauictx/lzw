@@ -308,6 +308,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                       strip[-16:], len(strip), len(prefix))
         if strip == b'':
             if EOI_IS_EOD:  # if not, EOI was written at end of previous strip
+                write_code(code_from_string.get(prefix, None))
                 doctest_debug('writing END_OF_INFO code at end of file')
                 write_code(END_OF_INFO_CODE)
             doctest_debug('ending packstrip on empty strip')
