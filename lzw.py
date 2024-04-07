@@ -400,19 +400,14 @@ def dispatch(allowed, args, minargs, binary=True):
         args[3] = None
     eval(args[1])(*args[2:argcount])  # pylint: disable=eval-used
 
-# pylint: disable=function-redefined
-if __name__ == '__main__':
-    if os.getenv('PYTHON_DEBUGGING'):
-        def doctest_debug(*args):
-            '''
-            use logging.debug only during doctest
-            '''
-            logging.debug(*args)
-    dispatch(('encode', 'decode'), sys.argv, 3)
-elif os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest':
+if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
+                    os.getenv('PYTHON_DEBUGGING'):
+    # pylint: disable=function-redefined
     def doctest_debug(*args):
         '''
         use logging.debug only during doctest
         '''
         logging.debug(*args)
+if __name__ == '__main__':
+    dispatch(('encode', 'decode'), sys.argv, 3)
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
