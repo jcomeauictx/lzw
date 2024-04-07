@@ -367,6 +367,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     code_from_string = None
     while (strip := instream.read(stripsize)) != b'':
         packstrip(strip)
+        doctest_debug('read: %d, written: %d',
+                      instream.tell(), outstream.tell())
     if EOI_IS_EOD:
         packstrip(b'')
     logging.debug('ending lzw.encode()')
@@ -375,7 +377,7 @@ def dispatch(allowed, args, minargs, binary=True):
     '''
     simple dispatcher for scripts whose first arg is an action
 
-    2nd and 3rd args are, respectively, input and output files,
+    2nd and 3rd args are for input and output filenames,
     with '-' serving as stdin and stdout, respectively.
 
     `binary` indicates the files should be opened as byte streams
