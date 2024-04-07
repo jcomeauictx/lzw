@@ -106,7 +106,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     >>> check.index(b'---   Heraclitus  [540 -- 475 BCE]')
     46
     '''
-    # pylint: disable=too-many-statements
+    # pylint: disable=too-many-statements, too-many-locals
     def nextcode(instream):
         '''
         get next code from lzw-compressed data
@@ -115,7 +115,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         '''
         nonlocal bitstream
         logging.debug('nextcode(): bitstream=%r', bitstream)
-        while byte := instream.read(1):
+        while not end_of_data and (byte := instream.read(1)):
             rawbyte = ord(byte)
             doctest_debug('input byte %s: 0x%x', byte, rawbyte)
             bitstream += format(rawbyte, '08b')
@@ -138,6 +138,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     minbits = bitlength = (minbits or MINBITS)
     maxbits = maxbits or MAXBITS
     lastvalue = codevalue = None
+    end_of_data = False
     for code in codegenerator:
         try:
             codevalue = codedict[code]
@@ -177,9 +178,13 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             if code == END_OF_INFO_CODE:
                 if EOI_IS_EOD:
                     doctest_debug('end of info code found, exiting')
-                    return None
+                    end_of_data = True
                 doctest_debug('ignoring EndOfInformation code')
-    return None
+        try:
+            doctest_debug('decode(): bytes read: %d, written: %d',
+                          instream.tell(), outstream.tell())
+        except OSError:  # ignore Illegal Seek during doctests with BytesIO
+            pass
 
 def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
            minbits=9, maxbits=12, stripsize=8192):
@@ -367,8 +372,11 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     code_from_string = None
     while (strip := instream.read(stripsize)) != b'':
         packstrip(strip)
-        doctest_debug('read: %d, written: %d',
-                      instream.tell(), outstream.tell())
+        try:
+            doctest_debug('encode(): bytes read: %d, written: %d',
+                          instream.tell(), outstream.tell())
+        except OSError:  # ignore Illegal Seek during doctests with BytesIO
+            pass
     if EOI_IS_EOD:
         packstrip(b'')
     logging.debug('ending lzw.encode()')
