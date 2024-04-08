@@ -58,11 +58,11 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         while ((Code = GetNextCode()) != EoiCode) {
             if (Code == ClearCode) {
                 InitializeTable();
-                Code = GetNextCode();
-                if (Code == EoiCode)
-                    break;
-                WriteString(StringFromCode(Code));
-                OldCode = Code;
+                #Code = GetNextCode();  # NOTE: we don't do this here,
+                #if (Code == EoiCode)   # let next loop handle it.
+                #    break;
+                #WriteString(StringFromCode(Code));
+                #OldCode = Code;
             } /* end of ClearCode case */
             else {
                 if (IsInTable(Code)) {
@@ -130,6 +130,34 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                         raise ValueError('nonzero bits remaining after EOI')
                     bitstream = ''
                 yield code
+    def insert(bytestring):
+        '''
+        AddStringToTable() from pseudocode.
+
+        This comment from p.61 of TIFF6.pdf actually should apply to this
+        subroutine, since GetNextCode() (`nextcode` here) doesn't modify the
+        table and doesn't even need to know about it:
+
+        "The function GetNextCode() retrieves the next code from the
+         LZW-coded data. It must keep track of bit boundaries. It knows
+         that the first code that it gets will be a 9-bit code. We add
+         a table entry each time we get a code. So, GetNextCode() must
+         switch over to 10-bit codes as soon as string #510 is stored
+         into the table. Similarly, the switch is made to 11-bit codes
+         after #1022 and to 12-bit codes after #2046.
+        '''
+        nonlocal bitlength
+        newkey = len(codedict)
+        codedict[newkey] = bytestring
+        doctest_debug('added 0x%x: ...%s to codedict', newkey,
+                      codedict[newkey][-16:])
+        if (newkey + 2).bit_length() > (newkey + 1).bit_length():
+            if bitlength < maxbits:
+                doctest_debug(
+                    'increasing bitlength to %d at dictsize %d',
+                    bitlength + 1, len(codedict))
+                bitlength += 1
+        return newkey
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
     bitstream = ''
@@ -139,6 +167,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     maxbits = maxbits or MAXBITS
     lastvalue = codevalue = None
     end_of_data = False
+    # while ((Code = GetNextCode()) != EoiCode) {
     for code in codegenerator:
         try:
             codevalue = codedict[code]
@@ -152,22 +181,11 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         if codevalue is not None:
             doctest_debug('writing out %d bytes', len(codevalue))
             outstream.write(codevalue)
-            # now check if code is all ones except for LSB
-            # and raise bitlength if so
-            newkey = len(codedict)
             try:
-                codedict[newkey] = lastvalue + codevalue[0:1]
-                doctest_debug('added 0x%x: ...%s to codedict', newkey,
-                              codedict[newkey][-16:])
-            except TypeError:  # first output after clearcode? no lastvalue
+                insert(lastvalue + codevalue[0:1])
+            except TypeError:  # first output after ClearCode? no lastvalue
                 doctest_debug('not adding anything to dict after first'
                               ' output byte %s', codevalue)
-            if (len(codedict) + 1).bit_length() > (newkey + 1).bit_length():
-                if bitlength < maxbits:
-                    doctest_debug(
-                        'increasing bitlength to %d at dictsize %d',
-                        bitlength + 1, len(codedict))
-                    bitlength += 1
             lastvalue = codevalue
         else:  # CLEAR_CODE or END_OF_INFO_CODE
             doctest_debug('special code found, resetting dictionary')
@@ -179,6 +197,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 if EOI_IS_EOD:
                     doctest_debug('end of info code found, exiting')
                     end_of_data = True
+                # else decode() will run until `for` loop is done
                 doctest_debug('ignoring EndOfInformation code')
         try:
             doctest_debug('decode(): bytes read: %d, written: %d',
