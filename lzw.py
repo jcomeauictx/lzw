@@ -58,14 +58,23 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         while ((Code = GetNextCode()) != EoiCode) {
             if (Code == ClearCode) {
                 InitializeTable();
-                #Code = GetNextCode();  # NOTE: we don't do this here,
-                #if (Code == EoiCode)   # let next loop handle it.
-                #    break;
-                #WriteString(StringFromCode(Code));
-                #OldCode = Code;
+                //Code = GetNextCode();  // NOTE: we don't do this here,
+                //if (Code == EoiCode)   // let next loop handle it.
+                //   break;
+                //WriteString(StringFromCode(Code));
+                //OldCode = Code;
             } /* end of ClearCode case */
             else {
                 if (IsInTable(Code)) {
+                    /* note that this whole if-else block is mostly
+                       common code; the only thing that needs to be
+                       saved from it is setting OutString (`codevalue`),
+                       either directly from StringFromCode(Code)
+                       (`codedict[code]`), or if code isn't in table,
+                       creating from OldCode (`lastvalue + lastvalue[0:1]`)
+                       in either case, we WriteString, AddStringToTable,
+                       and set OldCode = Code.
+                    */
                     WriteString(StringFromCode(Code));
                     AddStringToTable(StringFromCode(OldCode
                         )+FirstChar(StringFromCode(Code)));
@@ -152,7 +161,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         doctest_debug('added 0x%x (%d): ...%s (%d bytes) to codedict',
                       newkey, newkey, codedict[newkey][-16:],
                       len(codedict[newkey]))
-        if (newkey + 2).bit_length() + 1 == (newkey + 1).bit_length():
+        if (newkey + 2).bit_length() == (newkey + 1).bit_length() + 1:
             if bitlength < maxbits:
                 doctest_debug(
                     'increasing bitlength to %d at dictsize %d',
@@ -168,12 +177,24 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     lastvalue = codevalue = None
     end_of_data = False
     # while ((Code = GetNextCode()) != EoiCode) {
+    # (we don't actually pay attention to EoiCode unless EOI_IS_EOD is set,
+    #  because the TIFF6 spec indicates it should be used at the end of
+    #  every 8192-byte strip, which is unnecessary and wasteful, as the
+    #  resulting compressed file can be over 10 times larger than it
+    #  otherwise has to be. We do, however, have to honor the mandatory
+    #  byte boundary after seeing it, clearing `bitstream`.)
     for code in codegenerator:
+        # note that we don't follow the pseudocode in order, and we
+        # ignore the duplicated code in the first `if` block.
         try:
             codevalue = codedict[code]
         except KeyError:  # code wasn't in dict
             # pylint: disable=unsubscriptable-object  # None or bytes
+    #   } else {  // else clause of `if (IsInTable(Code))`
+    #       WriteString(OutString);
             try:
+    #       OutString = StringFromCode(OldCode) +
+    #           FirstChar(StringFromCode(OldCode));
                 codevalue = lastvalue + lastvalue[0:1]
             except (TypeError, IndexError) as failure:
                 logging.error('This may be PackBits data, not LZW')
