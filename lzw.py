@@ -184,17 +184,26 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     #  otherwise has to be. We do, however, have to honor the mandatory
     #  byte boundary after seeing it, clearing `bitstream`.)
     for code in codegenerator:
-        # note that we don't follow the pseudocode in order, and we
-        # ignore the duplicated code in the first `if` block.
+        # note that we don't follow the pseudocode in order
+        #       if (IsInTable(Code)) {
+        #           WriteString(StringFromCode(Code));
+        #           AddStringToTable(StringFromCode(OldCode
+        #               )+FirstChar(StringFromCode(Code)));
+        #           OldCode = Code;
+        #       } else {
+        #           OutString = StringFromCode(OldCode) +
+        #               FirstChar(StringFromCode(OldCode));
+        #           WriteString(OutString);
+        #           AddStringToTable(OutString);
+        #           OldCode = Code;
+        #       }
         try:
-            codevalue = codedict[code]
-        except KeyError:  # code wasn't in dict
-            # pylint: disable=unsubscriptable-object  # None or bytes
-    #   } else {  // else clause of `if (IsInTable(Code))`
-    #       WriteString(OutString);
+            codevalue = codedict[code]  # if (IsInTable(Code))
+        except KeyError:  # code wasn't in dict (`else` clause above)
             try:
-    #       OutString = StringFromCode(OldCode) +
-    #           FirstChar(StringFromCode(OldCode));
+                #       OutString = StringFromCode(OldCode) +
+                #           FirstChar(StringFromCode(OldCode));
+                # pylint: disable=unsubscriptable-object  # None or bytes
                 codevalue = lastvalue + lastvalue[0:1]
             except (TypeError, IndexError) as failure:
                 logging.error('This may be PackBits data, not LZW')
@@ -207,19 +216,19 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             except TypeError:  # first output after ClearCode? no lastvalue
                 doctest_debug('not adding anything to dict after first'
                               ' output byte %s', codevalue)
-            lastvalue = codevalue
-        else:  # CLEAR_CODE or END_OF_INFO_CODE
-            doctest_debug('special code found, resetting dictionary')
+            lastvalue = codevalue  # OldCode = Code
+        elif code == END_OF_INFO_CODE:
+            if EOI_IS_EOD:
+                doctest_debug('EndOfInformation code found, exiting')
+                end_of_data = True
+            # else decode() will run until `for` loop is done
+            else:
+                doctest_debug('ignoring EndOfInformation code')
+        else:  # CLEAR_CODE
             codedict.clear()
             codedict.update(newdict(specialcodes))
             bitlength = minbits
             lastvalue = None
-            if code == END_OF_INFO_CODE:
-                if EOI_IS_EOD:
-                    doctest_debug('end of info code found, exiting')
-                    end_of_data = True
-                # else decode() will run until `for` loop is done
-                doctest_debug('ignoring EndOfInformation code')
         try:
             doctest_debug('decode(): bytes read: %d, written: %d',
                           instream.tell(), outstream.tell())
