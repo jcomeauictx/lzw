@@ -56,7 +56,6 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
 
     adapted from pseudocode on page 61 of TIFF6.pdf
 
-
         while ((Code = GetNextCode()) != EoiCode) {
             if (Code == ClearCode) {
                 InitializeTable();
@@ -268,6 +267,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             else:
                 doctest_debug('ignoring EndOfInformation code')
         else:  # CLEAR_CODE
+            doctest_debug('processing ClearCode')
             codedict.clear()
             codedict.update(newdict(specialcodes))
             bitlength = minbits
