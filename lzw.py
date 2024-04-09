@@ -357,6 +357,9 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                           number, bitstream, bitlength)
             if number is not None:
                 bitstream += '{0:0{1}b}'.format(number, bitlength)
+            else:
+                doctest_debug('write_code(None) with bitstream=%s, prefix=%s',
+                              bitstream, prefix)
             while len(bitstream) >= 8:
                 byte = bytes([int(bitstream[0:8], 2)])
                 doctest_debug('writing leftmost 8 bits of %s (0x%02x)',
@@ -454,7 +457,9 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         doctest_debug('finishing strip, prefix=...%s, length %d',
                       prefix[-16:], len(prefix))
         if not EOI_IS_EOD:
+            doctest_debug('writing final prefix before EOI code')
             write_code(code_from_string.get(prefix, None))
+            prefix = b''  # reset prefix
             doctest_debug('writing END_OF_INFO code at end of strip')
             write_code(END_OF_INFO_CODE)
             code_from_string = None  # to force reset on next packstrip()
