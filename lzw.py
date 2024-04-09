@@ -1,6 +1,6 @@
 #!/usr/bin/python3 -OO
 '''
-Simple LZW decoder for PDF reverse engineering
+Simple LZW encoder and decoder for PDF reverse engineering
 
 LZW documentation in TIFF6.pdf says strips of 8k characters should be
 ended with EndOfInformation code. But that isn't the case for any PDF
@@ -10,7 +10,9 @@ seeing it, and the encoder will not append it until the end of all the
 data.
 
 If EOI_IS_EOD is left False, the decoder will treat EndOfInformation as
-a ClearCode, and the encoder will send it at the end of each strip.
+a ClearCode, and the encoder will send it at the end of each strip. This
+results in much larger LZW-compressed images, over 10 times larger in
+the card.lzw test case.
 
 On page 61: "Every LZW-compressed strip must begin on a byte boundary."
 So, the bitstream should be cleared after sending, and after receiving,
@@ -66,18 +68,9 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             } /* end of ClearCode case */
             else {
                 if (IsInTable(Code)) {
-                    /* note that this whole if-else block is mostly
-                       common code; the only thing that needs to be
-                       saved from it is setting OutString (`codevalue`),
-                       either directly from StringFromCode(Code)
-                       (`codedict[code]`), or if code isn't in table,
-                       creating from OldCode (`lastvalue + lastvalue[0:1]`)
-                       in either case, we WriteString, AddStringToTable,
-                       and set OldCode = Code.
-                    */
                     WriteString(StringFromCode(Code));
-                    AddStringToTable(StringFromCode(OldCode
-                        )+FirstChar(StringFromCode(Code)));
+                    AddStringToTable(StringFromCode(OldCode) +
+                        FirstChar(StringFromCode(Code)));
                     OldCode = Code;
                 } else {
                     OutString = StringFromCode(OldCode) +
@@ -88,6 +81,51 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 }
             } /* end of not-ClearCode case */
         } /* end of while loop */
+
+    let's simplify the nested if-else above for DRY:
+
+                if (IsInTable(Code)) {
+                    OutString = StringFromCode(Code);
+                    StoreString = StringFromCode(OldCode) +
+                        FirstChar(StringFromCode(Code);
+                } else {
+                    OutString = StringFromCode(OldCode) +
+                        FirstChar(StringFromCode(OldCode);
+                    StoreString = OutString;
+                }
+                WriteString(OutString);
+                AddStringToTable(StoreString);
+                OldCode = Code;
+
+    much better, except that since we ignore the suggestion in the
+    original pseudocode to process separately the first code after ClearCode,
+    there will be an exception trying to access OldCode for the first
+    in-table Code. We handle it by setting StoreString to null (None) in
+    that case. So the complete rewritten pseudocode would be:
+            
+        while ((Code = GetNextCode()) != EoiCode) {
+            if (Code == ClearCode) {
+                InitializeTable();
+            } /* end of ClearCode case */
+            else {
+                if (IsInTable(Code)) {
+                    OutString = StringFromCode(Code);
+                    try {
+                        StoreString = StringFromCode(OldCode) +
+                            FirstChar(StringFromCode(Code);
+                    } except(NoOldCodeImmediatelyAfterClearCode) {
+                        StoreString = null;
+                    }
+                } else {
+                    OutString = StringFromCode(OldCode) +
+                        FirstChar(StringFromCode(OldCode);
+                    StoreString = OutString;
+                }
+                WriteString(OutString);
+                if (StoreString != null) AddStringToTable(StoreString);
+                OldCode = Code;
+            }
+        }
 
     Test case from https://rosettacode.org/wiki/LZW_compression
     >>> from io import BytesIO
@@ -184,38 +222,43 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     #  otherwise has to be. We do, however, have to honor the mandatory
     #  byte boundary after seeing it, clearing `bitstream`.)
     for code in codegenerator:
-        # note that we don't follow the pseudocode in order
         #       if (IsInTable(Code)) {
-        #           WriteString(StringFromCode(Code));
-        #           AddStringToTable(StringFromCode(OldCode
-        #               )+FirstChar(StringFromCode(Code)));
-        #           OldCode = Code;
+        #           OutString = StringFromCode(Code);
+        #           try {
+        #               StoreString = StringFromCode(OldCode) +
+        #                   FirstChar(StringFromCode(Code);
+        #           } except(NoOldCodeImmediatelyAfterClearCode) {
+        #               StoreString = null;
+        #           }
         #       } else {
         #           OutString = StringFromCode(OldCode) +
-        #               FirstChar(StringFromCode(OldCode));
-        #           WriteString(OutString);
-        #           AddStringToTable(OutString);
-        #           OldCode = Code;
+        #               FirstChar(StringFromCode(OldCode);
+        #           StoreString = OutString;
         #       }
+        #       WriteString(OutString);
+        #       if (StoreString != null) AddStringToTable(StoreString);
+        #       OldCode = Code;
         try:
             codevalue = codedict[code]  # if (IsInTable(Code))
+            # (remember that CLEAR_CODE and END_OF_INFO_CODE are both
+            #  also in dict and will return None; this will catch that too.)
+            try:
+                storevalue = lastvalue + codevalue[0:1]
+            except TypeError:  # attempting to add bytes to None
+                storevalue = None
         except KeyError:  # code wasn't in dict (`else` clause above)
             try:
-                #       OutString = StringFromCode(OldCode) +
-                #           FirstChar(StringFromCode(OldCode));
                 # pylint: disable=unsubscriptable-object  # None or bytes
                 codevalue = lastvalue + lastvalue[0:1]
             except (TypeError, IndexError) as failure:
                 logging.error('This may be PackBits data, not LZW')
                 raise ValueError('Invalid LZW data') from failure
+            storevalue = codevalue
         if codevalue is not None:
             doctest_debug('writing out %d bytes', len(codevalue))
-            outstream.write(codevalue)
-            try:
-                insert(lastvalue + codevalue[0:1])
-            except TypeError:  # first output after ClearCode? no lastvalue
-                doctest_debug('not adding anything to dict after first'
-                              ' output byte %s', codevalue)
+            outstream.write(codevalue)  # WriteString(OutString);
+            if storevalue is not None:  # if (StoreString != null)
+                insert(storevalue)  # AddStringToTable(StoreString);
             lastvalue = codevalue  # OldCode = Code
         elif code == END_OF_INFO_CODE:
             if EOI_IS_EOD:
