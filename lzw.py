@@ -336,6 +336,16 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             '''
             return dict(map(reversed, newdict(False).items()))
 
+        def clear_string_table():
+            '''
+            send clear code and reinitialize
+            '''
+            nonlocal bitlength
+            write_code(CLEAR_CODE)
+            code_from_string.clear()
+            code_from_string.update(initialize_string_table())
+            bitlength = minbits
+
         def write_code(number):
             '''
             pack number into bits with current bitlength and ship out bytes
@@ -395,10 +405,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 bitlength += 1
             elif newcode == 2 ** maxbits - 2:
                 logging.debug('clearing table at size %d', dict_length + 2)
-                write_code(CLEAR_CODE)
-                code_from_string.clear()
-                code_from_string.update(initialize_string_table())
-                bitlength = minbits
+                clear_string_table()
 
         nonlocal prefix, code_from_string
         doctest_debug('beginning packstrip(...%s), length %d, prefix length %d',
@@ -418,7 +425,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             # InitializeStringTable();
             code_from_string = initialize_string_table()
             # WriteCode(ClearCode);
-            write_code(CLEAR_CODE)
+            clear_string_table()
             # Omega (I'm using `prefix`] = the empty string;
             # NOTE: the caller (encode) sets this. Prefix must be
             # carried over from one strip to the next.
