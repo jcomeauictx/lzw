@@ -195,7 +195,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         nonlocal bitlength
         newkey = len(codedict)
         codedict[newkey] = bytestring
-        doctest_debug('added 0x%x (%d): ...%s (%d bytes) to codedict',
+        doctest_debug('added 0x%x (%d): ...%s (%d bytes) to dict',
                       newkey, newkey, codedict[newkey][-16:],
                       len(codedict[newkey]))
         if (newkey + 2).bit_length() == (newkey + 1).bit_length() + 1:
@@ -397,17 +397,18 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             # EndOfInformation, so it starts at 256 elements exactly.
             # the first new entry's code then has to be 258,
             # which is len(table)+2.
-            dict_length = len(code_from_string)
-            newcode = dict_length + 2
-            doctest_debug('code_from_string length %d, newcode: %d (0x%02x)',
-                          len(code_from_string), newcode, newcode)
+            newcode = len(code_from_string) + 2
             code_from_string[entry] = newcode
+            doctest_debug('added 0x%x (%d), key ...%s (%d bytes) to dict',
+                          newcode, newcode, entry[-16:],
+                          len(entry))
+            # "After adding table entry 511, switch to 10-bit codes..."
             if newcode + 1 == 2 ** bitlength and bitlength < maxbits:
                 logging.debug('raising bitlength to %d at table size %d',
-                              bitlength + 1, dict_length + 2)
+                              bitlength + 1, newcode)
                 bitlength += 1
             elif newcode == 2 ** maxbits - 2:
-                logging.debug('clearing table at size %d', dict_length + 2)
+                logging.debug('clearing table at size %d', newcode)
                 clear_string_table()
 
         nonlocal prefix, code_from_string
