@@ -67,10 +67,10 @@ env:
 packtest: $(HOME)/tmp/sample.rgb.reunpacked
 %.lzw.check: %.rgb lzw.py
 	python3 lzw.py encode $< $@ 2>/tmp/$(@F).log
-	diff $*.lzw $@
+	diff -q $*.lzw $@
 %.rgb.check: %.lzw.check lzw.py
 	python3 lzw.py decode $< $@ 2>/tmp/$(@F).log
-	diff $*.rgb $@
+	diff -q $*.rgb $@
 %.diff: %.check
 	diff -y <(head -c $(BYTECOUNT) $* | xxd) \
 	 <(head -c $(BYTECOUNT) $< | xxd)
