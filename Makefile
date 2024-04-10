@@ -2,8 +2,12 @@ SHELL := /bin/bash  # we're using Bashisms
 BYTECOUNT ?= 1000
 ASCII85 := $(shell PATH=$(PATH):. \
 	     which ascii85 ascii85.py 2>/dev/null | head -n 1)
+PYTHON_DEBUGGING ?= 1
+EOI_IS_EOD ?= 1
 ifneq ($(SHOW_ENV),)
   export
+else
+  export PYTHON_DEBUGGING EOI_IS_EOD
 endif
 all: lzw.pylint lzw.doctest card.view
 %.gs: %.pdf /usr/bin/pdf2ps
@@ -19,8 +23,8 @@ all: lzw.pylint lzw.doctest card.view
 	sed '1,/^ID$$/d' $< | sed '/^EI Q$$/,$$d' >> $@
 %.lzw %.rle: %.a85
 	cat $< | $(ASCII85) -d > $@
-%.rgb:  %.lzw
-	./lzw.py decode $< $@  #2>/tmp/lzw.log
+%.rgb:  %.lzw lzw.py
+	python3 lzw.py decode $< $@  2>/tmp/$(@F).log
 %.view: %.rgb %.gs
 	WIDTH=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$4}' $*.gs); \
 	HEIGHT=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$5}' $*.gs); \
