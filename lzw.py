@@ -205,8 +205,8 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         if (newkey + 2).bit_length() == (newkey + 1).bit_length() + 1:
             if bitlength < maxbits:
                 doctest_debug(
-                    'increasing bitlength to %d at dictsize %d',
-                    bitlength + 1, len(codedict))
+                    'increasing bitlength to %d at code %d',
+                    bitlength + 1, newkey)
                 bitlength += 1
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
@@ -387,15 +387,19 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             add a new bytes-to-integer-code mapping
 
             just before doubling table size, increment bitlength;
-            i.e. after entering the 511th entry, raise it from 9 to 10;
-            after entering the 1023d entry, raise it from 10 to 11;
-            and after entering the 2047, raise it from 11 to 12.
-            just before final entry (index 4094), write out 12-bit
+            i.e. after entering table entry 511, raise it from 9 to 10;
+            after entering table entry 1023, raise it from 10 to 11;
+            and after table entry 2047, raise it from 11 to 12.
+            as soon as we use entry 4094, we write out a 12-bit
             ClearCode, and reinit the table.
 
             NOTE that in the above paragraph, "table" size includes the
             two special codes, which are *not* actually present in the
             code_from_string dict.
+
+            NOTE also that entry 511 could mean the 512th entry with code
+            511, or the 511th entry with code 510. Need to find out what
+            works.
             '''
             nonlocal bitlength
             doctest_debug('add_table_entry(...%r) (length %d)',
@@ -412,13 +416,14 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                           newcode, newcode, entry[-16:],
                           len(entry))
             # "After adding table entry 511, switch to 10-bit codes..."
-            if newcode + 1 == 2 ** bitlength and bitlength < maxbits:
-                logging.debug('raising bitlength to %d at table size %d',
-                              bitlength + 1, newcode)
-                bitlength += 1
-            elif newcode == 2 ** maxbits - 2:
-                logging.debug('clearing table at size %d', newcode)
-                clear_string_table()
+            if newcode + 1 == 2 ** bitlength:
+                if bitlength < maxbits:
+                    logging.debug('increasing bitlength to %d at code %d',
+                                  bitlength + 1, newcode)
+                    bitlength += 1
+                else:
+                    logging.debug('clearing table at code %d', newcode)
+                    clear_string_table()
 
         nonlocal prefix, code_from_string
         doctest_debug('beginning packstrip(...%s), length %d, prefix length %d',

@@ -3,7 +3,7 @@ BYTECOUNT ?= 1000
 ASCII85 := $(shell PATH=$(PATH):. \
 	     which ascii85 ascii85.py 2>/dev/null | head -n 1)
 PYTHON_DEBUGGING ?= 1
-EOI_IS_EOD ?= 1
+EOI_IS_EOD ?= .ignoreeoi
 ifneq ($(SHOW_ENV),)
   export
 else
@@ -66,11 +66,12 @@ env:
 	python3 packbits.py unpack $< $@
 packtest: $(HOME)/tmp/sample.rgb.reunpacked
 %.lzw.check: %.rgb lzw.py
-	python3 lzw.py encode $< $@ 2>/tmp/$(@F).log
-	diff -q $*.lzw $@
+	-python3 lzw.py encode $< $@ 2>/tmp/$(@F)$(EOI_IS_EOD).log
+	-diff -q $*.lzw $@
 %.rgb.check: %.lzw.check lzw.py
-	python3 lzw.py decode $< $@ 2>/tmp/$(@F).log
-	diff -q $*.rgb $@
+	-python3 lzw.py decode $< $@ 2>/tmp/$(@F)$(EOI_IS_EOD).log
+	-diff -q $*.rgb $@
 %.diff: %.check
 	diff -y <(head -c $(BYTECOUNT) $* | xxd) \
 	 <(head -c $(BYTECOUNT) $< | xxd)
+check: card.lzw.check card.rgb.check
