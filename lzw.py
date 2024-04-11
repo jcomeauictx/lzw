@@ -152,7 +152,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     >>> check.index(b'---   Heraclitus  [540 -- 475 BCE]')
     46
     '''
-    # pylint: disable=too-many-statements, too-many-locals
+    # pylint: disable=too-many-statements, too-many-locals, too-many-branches
     def nextcode(instream):
         '''
         get next code from lzw-compressed data
@@ -191,6 +191,10 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
          switch over to 10-bit codes as soon as string #510 is stored
          into the table. Similarly, the switch is made to 11-bit codes
          after #1022 and to 12-bit codes after #2046.
+
+        One thing the pseudocode doesn't mention is that an unknown code
+        shouldn't be more than 1 plus the highest known code, or it is
+        an error in the codestream. We will trap this below.
         '''
         nonlocal bitlength
         newkey = len(codedict)
@@ -237,22 +241,27 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         #       WriteString(OutString);
         #       if (StoreString != null) AddStringToTable(StoreString);
         #       OldCode = Code;
-        try:
-            codevalue = codedict[code]  # if (IsInTable(Code))
+        if code in codedict:  # if (IsInTable(Code))
+            codevalue = codedict[code]
             # (remember that CLEAR_CODE and END_OF_INFO_CODE are both
             #  also in dict and will return None; this will catch that too.)
             try:
                 storevalue = lastvalue + codevalue[0:1]
             except TypeError:  # attempting to add bytes to None
                 storevalue = None
-        except KeyError:  # code wasn't in dict (`else` clause above)
-            try:
-                # pylint: disable=unsubscriptable-object  # None or bytes
-                codevalue = lastvalue + lastvalue[0:1]
-            except (TypeError, IndexError) as failure:
+        else:  # code wasn't in dict
+            if code - 1 in codedict:
+                try:
+                    # pylint: disable=unsubscriptable-object  # None or bytes
+                    codevalue = lastvalue + lastvalue[0:1]
+                except (TypeError, IndexError):
+                    codevalue = None
+                storevalue = codevalue
+            else:
+                codevalue = None
+            if codevalue is None:
                 logging.error('This may be PackBits data, not LZW')
-                raise ValueError('Invalid LZW data') from failure
-            storevalue = codevalue
+                raise ValueError('Invalid LZW data at code 0x%02x' % code)
         if codevalue is not None:
             doctest_debug('writing out %d bytes', len(codevalue))
             outstream.write(codevalue)  # WriteString(OutString);
