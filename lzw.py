@@ -361,7 +361,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
 
             high-order bits go first
             '''
-            nonlocal bitstream
+            nonlocal bitstream, writecount
             doctest_debug('write_code %s: bitstream="%s", bitlength=%s',
                           number, bitstream, bitlength)
             if number is not None:
@@ -375,6 +375,13 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                               bitstream, ord(byte))
                 outstream.write(byte)
                 bitstream = bitstream[8:]
+            if number == CLEAR_CODE:
+                if writecount > 0:
+                    logging.debug('%d codes written since last ClearCode',
+                                  writecount)
+                writecount = 0
+            else:
+                writecount += 1
             if number == END_OF_INFO_CODE and bitstream:
                 # at end of strip, pack up any straggler bits and ship
                 bitstream = bitstream.ljust(8, '0')
@@ -483,6 +490,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         return
     logging.debug('beginning lzw.encode()')
     logging.debug('EOI_IS_EOD: %s', EOI_IS_EOD)
+    writecount = 0
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
     minbits = bitlength = (minbits or MINBITS)
