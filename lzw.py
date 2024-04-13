@@ -23,7 +23,7 @@ import sys, os, struct, logging  # pylint: disable=multiple-imports
 CLEAR_CODE = 256
 END_OF_INFO_CODE = 257
 MINBITS, MAXBITS = 9, 12
-EOI_IS_EOD = os.getenv('EOI_IS_EOD')
+EOI_IS_EOD = os.getenv('EOI_IS_EOD', '1')
 CODE_SIZE = 256  # original dict size, used for deciding when to increase bits
 
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
