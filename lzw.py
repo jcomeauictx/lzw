@@ -164,7 +164,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         logging.debug('nextcode(): bitstream=%r', bitstream)
         while not end_of_data and (byte := instream.read(1)):
             rawbyte = ord(byte)
-            doctest_debug('input byte %s: 0x%x', byte, rawbyte)
+            doctest_debug("input byte b'\\x%02x'", rawbyte)
             bitstream += format(rawbyte, '08b')
             if len(bitstream) >= bitlength:
                 bincode = bitstream[:bitlength]
@@ -200,9 +200,9 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         nonlocal bitlength
         newkey = len(codedict)
         codedict[newkey] = bytestring
-        doctest_debug('added 0x%x (%d): ...%s (%d bytes) to dict',
-                      newkey, newkey, codedict[newkey][-16:],
-                      len(codedict[newkey]))
+        doctest_debug('added 0x%x (%d): %d bytes ...%s to dict',
+                      newkey, newkey, len(codedict[newkey]),
+                      codedict[newkey][-16:])
         if (newkey + 2).bit_length() == (newkey + 1).bit_length() + 1:
             if bitlength < maxbits:
                 doctest_debug(
@@ -447,9 +447,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             # which is len(table)+2.
             newcode = len(code_from_string) + 2
             code_from_string[entry] = newcode
-            doctest_debug('added 0x%x (%d), key ...%s (%d bytes) to dict',
-                          newcode, newcode, entry[-16:],
-                          len(entry))
+            doctest_debug('added 0x%x (%d), key %d bytes ...%s to dict',
+                          newcode, newcode, len(entry), entry[-16:])
 
         nonlocal prefix, code_from_string
         doctest_debug('beginning packstrip(...%s), length %d, prefix length %d',
