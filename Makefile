@@ -2,8 +2,11 @@ SHELL := /bin/bash  # we're using Bashisms
 BYTECOUNT ?= 1000
 ASCII85 := $(shell PATH=$(PATH):. \
 	     which ascii85 ascii85.py 2>/dev/null | head -n 1)
-PYTHON_DEBUGGING ?= 1
-EOI_IS_EOD ?= .ignoreeoi
+PYTHON_DEBUGGING ?=
+EOI_IS_EOD ?= 1
+ifeq ($(EOI_IS_EOD),)
+  IGNORE_EOI := .ignoreeoi
+endif
 ifneq ($(SHOW_ENV),)
   export
 else
@@ -66,12 +69,18 @@ env:
 	python3 packbits.py unpack $< $@
 packtest: $(HOME)/tmp/sample.rgb.reunpacked
 %.lzw.check: %.rgb lzw.py
-	-python3 lzw.py encode $< $@ 2>/tmp/$(@F)$(EOI_IS_EOD).log
+	-python3 lzw.py encode $< $@ 2>/tmp/$(@F)$(IGNORE_EOI).log
 	-diff -q $*.lzw $@
 %.rgb.check: %.lzw.check lzw.py
-	-python3 lzw.py decode $< $@ 2>/tmp/$(@F)$(EOI_IS_EOD).log
+	-python3 lzw.py decode $< $@ 2>/tmp/$(@F)$(IGNORE_EOI).log
 	-diff -q $*.rgb $@
 %.diff: %.check
 	diff -y <(head -c $(BYTECOUNT) $* | xxd) \
 	 <(head -c $(BYTECOUNT) $< | xxd)
 check: card.lzw.check card.rgb.check
+encode.profile: lzw.py card.rgb
+	python3 -c "import cProfile; \
+	 from lzw import encode; \
+	 instream = open('card.rgb', 'rb'); \
+	 outstream = open('/tmp/card.lzw.tmp', 'wb'); \
+	 cProfile.run('encode(instream, outstream)', '$@')"
