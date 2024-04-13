@@ -2,7 +2,7 @@ SHELL := /bin/bash  # we're using Bashisms
 BYTECOUNT ?= 1000
 ASCII85 := $(shell PATH=$(PATH):. \
 	     which ascii85 ascii85.py 2>/dev/null | head -n 1)
-PYTHON_DEBUGGING ?= 1
+PYTHON_DEBUGGING ?=
 EOI_IS_EOD ?= 1
 ifeq ($(EOI_IS_EOD),)
   IGNORE_EOI := .ignoreeoi
