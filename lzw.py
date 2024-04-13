@@ -24,6 +24,7 @@ CLEAR_CODE = 256
 END_OF_INFO_CODE = 257
 MINBITS, MAXBITS = 9, 12
 EOI_IS_EOD = os.getenv('EOI_IS_EOD')
+CODE_SIZE = 256  # original dict size, used for deciding when to increase bits
 
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
 # pylint: disable=consider-using-f-string  # leave this for later
@@ -361,7 +362,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
 
             high-order bits go first
             '''
-            nonlocal bitstream, writecount
+            nonlocal bitstream, bitlength, writecount
             doctest_debug('write_code %s: bitstream="%s", bitlength=%s',
                           number, bitstream, bitlength)
             if number is not None:
@@ -376,10 +377,10 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 outstream.write(byte)
                 bitstream = bitstream[8:]
             if number == CLEAR_CODE:
-                if writecount > 0:
+                if writecount > CODE_SIZE:  # original dict size
                     logging.debug('%d codes written since last ClearCode',
                                   writecount)
-                writecount = 0
+                writecount = CODE_SIZE
             else:
                 writecount += 1
             if number == END_OF_INFO_CODE and bitstream:
@@ -388,6 +389,15 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 doctest_debug('writing final bits of stream %s', bitstream)
                 outstream.write(bytes([int(bitstream, 2)]))
                 bitstream = ''
+            #doctest_debug('writecount: %d', writecount)
+            if (writecount + 2) == (2 ** bitlength):
+                if bitlength < maxbits:
+                    logging.debug('increasing bitlength to %d at code %d',
+                                  bitlength + 1, writecount)
+                    bitlength += 1
+                else:
+                    logging.debug('clearing table at code %d', writecount)
+                    clear_string_table()
 
         def add_table_entry(entry):
             '''
@@ -407,8 +417,26 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             NOTE also that entry 511 could mean the 512th entry with code
             511, or the 511th entry with code 510. Need to find out what
             works.
+
+            Final NOTE: the following text in italics on P. 60 of TIFF6.pdf
+            turns out to be the determinant:
+
+            "Whenever you add a code to the output stream, it “counts”
+             toward the decision about bumping the code bit length. This
+             is important when writing the last code word before an EOI
+             code or ClearCode, to avoid code length errors."
+
+            So the above part about the number of table entries was a
+            lie, or at minimum an oversimplification. The decoder is going
+            to raise bitlength when it sees (2 ** bitlength - 2) codes.
+            So, when the encoder sends the 254th code right before EOI,
+            it has to send EOI as a 10-bit code even though that last
+            `WriteCode(CodeFromString(Omega))`, outside the loop, didn't
+            add a table entry.
+
+            Accordingly, we move the bitlength-incrementing code to
+            the `write_code` subroutine.
             '''
-            nonlocal bitlength
             doctest_debug('add_table_entry(...%r) (length %d)',
                           entry[-16:], len(entry))
             if not entry:
@@ -422,15 +450,6 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             doctest_debug('added 0x%x (%d), key ...%s (%d bytes) to dict',
                           newcode, newcode, entry[-16:],
                           len(entry))
-            # "After adding table entry 511, switch to 10-bit codes..."
-            if newcode + 1 == 2 ** bitlength:
-                if bitlength < maxbits:
-                    logging.debug('increasing bitlength to %d at code %d',
-                                  bitlength + 1, newcode)
-                    bitlength += 1
-                else:
-                    logging.debug('clearing table at code %d', newcode)
-                    clear_string_table()
 
         nonlocal prefix, code_from_string
         doctest_debug('beginning packstrip(...%s), length %d, prefix length %d',
@@ -490,7 +509,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         return
     logging.debug('beginning lzw.encode()')
     logging.debug('EOI_IS_EOD: %s', EOI_IS_EOD)
-    writecount = 0
+    writecount = CODE_SIZE
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
     minbits = bitlength = (minbits or MINBITS)
