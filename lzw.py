@@ -275,7 +275,8 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 end_of_data = True
             # else decode() will run until `for` loop is done
             else:
-                doctest_debug('ignoring EndOfInformation code')
+                doctest_debug('EndOfInformation code, only resetting bitlength')
+                bitlength = minbits
         else:  # CLEAR_CODE
             doctest_debug('processing ClearCode')
             codedict.clear()
@@ -351,10 +352,10 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             send clear code and reinitialize
             '''
             nonlocal bitlength
-            write_code(CLEAR_CODE)
             code_from_string.clear()
             code_from_string.update(initialize_string_table())
             bitlength = minbits
+            write_code(CLEAR_CODE)
 
         def write_code(number):
             '''
@@ -390,7 +391,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 outstream.write(bytes([int(bitstream, 2)]))
                 bitstream = ''
             #doctest_debug('writecount: %d', writecount)
-            if (writecount + 2) == (2 ** bitlength):
+            elif (writecount + 2) == (2 ** bitlength):
                 if bitlength < maxbits:
                     logging.debug('increasing bitlength to %d at code %d',
                                   bitlength + 1, writecount)
@@ -460,13 +461,12 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 write_code(END_OF_INFO_CODE)
             doctest_debug('ending packstrip on empty strip')
             return
-        if code_from_string is None or not EOI_IS_EOD:
+        if len(code_from_string) == 0 or not EOI_IS_EOD:
             # (TIFF6 spec says each strip should reinit table and
             # send ClearCode, but many PDF images don't show this
             # in use. So we only do it on first call, and after
             # table fills up.)
             # InitializeStringTable();
-            code_from_string = initialize_string_table()
             # WriteCode(ClearCode);
             clear_string_table()
             # Omega (I'm using `prefix`] = the empty string;
@@ -502,7 +502,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             prefix = b''  # reset prefix
             doctest_debug('writing END_OF_INFO code at end of strip')
             write_code(END_OF_INFO_CODE)
-            code_from_string = None  # to force reset on next packstrip()
+            code_from_string.clear()  # to force reset on next packstrip()
         doctest_debug('ending packstrip(...%s), length %d',
                       strip[-16:], len(strip))
         return
@@ -514,7 +514,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     minbits = bitlength = (minbits or MINBITS)
     maxbits = maxbits or MAXBITS
     bitstream, prefix = '', b''
-    code_from_string = None
+    code_from_string = {}
     while (strip := instream.read(stripsize)) != b'':
         packstrip(strip)
         try:
