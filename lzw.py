@@ -347,15 +347,20 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             '''
             return dict(map(reversed, newdict(False).items()))
 
-        def clear_string_table():
+        def clear_string_table(filemode=EOI_IS_EOD):
             '''
             send clear code and reinitialize
+
+            set filemode=False if calling right after EndOfInfoCode
             '''
             nonlocal bitlength
-            write_code(CLEAR_CODE)
+            if filemode:  # send CLEAR_CODE at current bitlength
+                write_code(CLEAR_CODE)
             code_from_string.clear()
             code_from_string.update(initialize_string_table())
             bitlength = minbits
+            if not filemode:  # send CLEAR_CODE as 9-bit code
+                write_code(CLEAR_CODE)
 
         def write_code(number):
             '''
@@ -363,7 +368,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
 
             high-order bits go first
             '''
-            nonlocal bitstream
+            nonlocal bitstream, bitlength, writecount
             doctest_debug('write_code %s: bitstream="%s", bitlength=%s',
                           number, bitstream, bitlength)
             if number is not None:
@@ -485,6 +490,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         return
     logging.debug('beginning lzw.encode()')
     logging.debug('EOI_IS_EOD: %s', EOI_IS_EOD)
+    writecount = CODE_SIZE
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
     minbits = bitlength = (minbits or MINBITS)
