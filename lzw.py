@@ -407,6 +407,25 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             NOTE also that entry 511 could mean the 512th entry with code
             511, or the 511th entry with code 510. Need to find out what
             works.
+
+            Final NOTE: the following text in italics on P. 60 of TIFF6.pdf
+            turns out to be the determinant:
+
+            "Whenever you add a code to the output stream, it “counts”
+             toward the decision about bumping the code bit length. This
+             is important when writing the last code word before an EOI
+             code or ClearCode, to avoid code length errors."
+
+            So the above part about the number of table entries was a
+            lie, or at minimum an oversimplification. The decoder is going
+            to raise bitlength when it sees (2 ** bitlength - 2) codes.
+            So, when the encoder sends the 254th code right before EOI,
+            it has to send EOI as a 10-bit code even though that last
+            `WriteCode(CodeFromString(Omega))`, outside the loop, didn't
+            add a table entry.
+
+            Accordingly, we move the bitlength-incrementing code to
+            the `write_code` subroutine.
             '''
             nonlocal bitlength
             doctest_debug('add_table_entry(...%r) (length %d)',
@@ -442,7 +461,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 write_code(END_OF_INFO_CODE)
             doctest_debug('ending packstrip on empty strip')
             return
-        if code_from_string is None or not EOI_IS_EOD:
+        if not code_from_string or not EOI_IS_EOD:
             # (TIFF6 spec says each strip should reinit table and
             # send ClearCode, but many PDF images don't show this
             # in use. So we only do it on first call, and after
@@ -484,7 +503,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             prefix = b''  # reset prefix
             doctest_debug('writing END_OF_INFO code at end of strip')
             write_code(END_OF_INFO_CODE)
-            code_from_string = None  # to force reset on next packstrip()
+            code_from_string.clear()  # to force reset on next packstrip()
         doctest_debug('ending packstrip(...%s), length %d',
                       strip[-16:], len(strip))
         return
@@ -496,7 +515,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     minbits = bitlength = (minbits or MINBITS)
     maxbits = maxbits or MAXBITS
     bitstream, prefix = '', b''
-    code_from_string = None
+    code_from_string = {}
     while (strip := instream.read(stripsize)) != b'':
         packstrip(strip)
         try:
