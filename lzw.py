@@ -200,9 +200,8 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         nonlocal bitlength
         newkey = len(codedict)
         codedict[newkey] = bytestring
-        doctest_debug('added 0x%x (%d): %d bytes ...%s to dict',
-                      newkey, newkey, len(codedict[newkey]),
-                      codedict[newkey][-16:])
+        doctest_debug('added 0x%x (%d), key %d bytes ...%s to dict',
+                      newcode, newcode, len(entry), entry[-16:])
         if (newkey + 2).bit_length() == (newkey + 1).bit_length() + 1:
             if bitlength < maxbits:
                 doctest_debug(
