@@ -492,6 +492,9 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         #         AddTableEntry(Omega+K);
         #         Omega = K;
             else:
+                # NOTE we need to reverse the order of the pseudocode above,
+                # since write_code now adjusts bitlength instead of
+                # add_table_entry. see notes under add_table_entry().
                 add_table_entry(prefix + byte)
                 write_code(code_from_string.get(prefix, None))
                 prefix = byte
