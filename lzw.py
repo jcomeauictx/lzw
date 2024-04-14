@@ -465,7 +465,6 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             # in use. So we only do it on first call, and after
             # table fills up.)
             # InitializeStringTable();
-            code_from_string = initialize_string_table()
             # WriteCode(ClearCode);
             clear_string_table()
             # Omega (I'm using `prefix`] = the empty string;
