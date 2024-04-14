@@ -83,4 +83,4 @@ encode.profile: lzw.py card.rgb
 	 from lzw import encode; \
 	 instream = open('card.rgb', 'rb'); \
 	 outstream = open('/tmp/card.lzw.tmp', 'wb'); \
-	 cProfile.run('encode(instream, outstream)', '$@')"
+	 cProfile.run('encode(instream, outstream)')" > $@
