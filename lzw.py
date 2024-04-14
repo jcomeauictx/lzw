@@ -492,9 +492,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         #         AddTableEntry(Omega+K);
         #         Omega = K;
             else:
-                write_code(code_from_string.get(prefix, None))
-                # must add 2 to all codes to account for Clear and EOI codes
                 add_table_entry(prefix + byte)
+                write_code(code_from_string.get(prefix, None))
                 prefix = byte
         # WriteCode (CodeFromString(Omega));
         # WriteCode (EndOfInformation);
