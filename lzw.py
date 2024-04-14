@@ -200,9 +200,8 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         nonlocal bitlength
         newkey = len(codedict)
         codedict[newkey] = bytestring
-        doctest_debug('added 0x%x (%d): %d bytes ...%s to dict',
-                      newkey, newkey, len(codedict[newkey]),
-                      codedict[newkey][-16:])
+        doctest_debug('added 0x%x (%d), key %d bytes ...%s to dict',
+                      newkey, newkey, len(bytestring), bytestring[-16:])
         if (newkey + 2).bit_length() == (newkey + 1).bit_length() + 1:
             if bitlength < maxbits:
                 doctest_debug(
@@ -347,15 +346,20 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             '''
             return dict(map(reversed, newdict(False).items()))
 
-        def clear_string_table():
+        def clear_string_table(filemode=EOI_IS_EOD):
             '''
             send clear code and reinitialize
+
+            set filemode=False if calling right after EndOfInfoCode
             '''
             nonlocal bitlength
+            if filemode:  # send CLEAR_CODE at current bitlength
+                write_code(CLEAR_CODE)
             code_from_string.clear()
             code_from_string.update(initialize_string_table())
             bitlength = minbits
-            write_code(CLEAR_CODE)
+            if not filemode:  # send CLEAR_CODE as 9-bit code
+                write_code(CLEAR_CODE)
 
         def write_code(number):
             '''
@@ -461,7 +465,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 write_code(END_OF_INFO_CODE)
             doctest_debug('ending packstrip on empty strip')
             return
-        if len(code_from_string) == 0 or not EOI_IS_EOD:
+        if not code_from_string or not EOI_IS_EOD:
             # (TIFF6 spec says each strip should reinit table and
             # send ClearCode, but many PDF images don't show this
             # in use. So we only do it on first call, and after
@@ -488,9 +492,11 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         #         AddTableEntry(Omega+K);
         #         Omega = K;
             else:
-                write_code(code_from_string.get(prefix, None))
-                # must add 2 to all codes to account for Clear and EOI codes
+                # NOTE we need to reverse the order of the pseudocode above,
+                # since write_code now adjusts bitlength instead of
+                # add_table_entry. see notes under add_table_entry().
                 add_table_entry(prefix + byte)
+                write_code(code_from_string.get(prefix, None))
                 prefix = byte
         # WriteCode (CodeFromString(Omega));
         # WriteCode (EndOfInformation);
