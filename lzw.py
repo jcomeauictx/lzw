@@ -201,7 +201,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         newkey = len(codedict)
         codedict[newkey] = bytestring
         doctest_debug('added 0x%x (%d), key %d bytes ...%s to dict',
-                      newcode, newcode, len(entry), entry[-16:])
+                      newkey, newkey, len(bytestring), bytestring[-16:])
         if (newkey + 2).bit_length() == (newkey + 1).bit_length() + 1:
             if bitlength < maxbits:
                 doctest_debug(
@@ -437,9 +437,8 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             # which is len(table)+2.
             newcode = len(code_from_string) + 2
             code_from_string[entry] = newcode
-            doctest_debug('added 0x%x (%d), key ...%s (%d bytes) to dict',
-                          newcode, newcode, entry[-16:],
-                          len(entry))
+            doctest_debug('added 0x%x (%d), key %d bytes ...%s to dict',
+                          newcode, newcode, len(entry), entry[-16:])
             # "After adding table entry 511, switch to 10-bit codes..."
             if newcode + 1 == 2 ** bitlength:
                 if bitlength < maxbits:
