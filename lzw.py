@@ -23,7 +23,8 @@ import sys, os, struct, logging  # pylint: disable=multiple-imports
 CLEAR_CODE = 256
 END_OF_INFO_CODE = 257
 MINBITS, MAXBITS = 9, 12
-EOI_IS_EOD = os.getenv('EOI_IS_EOD')
+EOI_IS_EOD = os.getenv('EOI_IS_EOD', '1')
+CODE_SIZE = 256  # original dict size, used for deciding when to increase bits
 
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
 # pylint: disable=consider-using-f-string  # leave this for later
@@ -163,7 +164,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         logging.debug('nextcode(): bitstream=%r', bitstream)
         while not end_of_data and (byte := instream.read(1)):
             rawbyte = ord(byte)
-            doctest_debug('input byte %s: 0x%x', byte, rawbyte)
+            doctest_debug("input byte b'\\x%02x'", rawbyte)
             bitstream += format(rawbyte, '08b')
             if len(bitstream) >= bitlength:
                 bincode = bitstream[:bitlength]
@@ -199,9 +200,9 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         nonlocal bitlength
         newkey = len(codedict)
         codedict[newkey] = bytestring
-        doctest_debug('added 0x%x (%d): ...%s (%d bytes) to dict',
-                      newkey, newkey, codedict[newkey][-16:],
-                      len(codedict[newkey]))
+        doctest_debug('added 0x%x (%d): %d bytes ...%s to dict',
+                      newkey, newkey, len(codedict[newkey]),
+                      codedict[newkey][-16:])
         if (newkey + 2).bit_length() == (newkey + 1).bit_length() + 1:
             if bitlength < maxbits:
                 doctest_debug(
@@ -274,7 +275,8 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 end_of_data = True
             # else decode() will run until `for` loop is done
             else:
-                doctest_debug('ignoring EndOfInformation code')
+                doctest_debug('EndOfInformation code, only resetting bitlength')
+                bitlength = minbits
         else:  # CLEAR_CODE
             doctest_debug('processing ClearCode')
             codedict.clear()
