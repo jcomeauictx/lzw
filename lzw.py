@@ -177,37 +177,6 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                         raise ValueError('nonzero bits remaining after EOI')
                     bitstream = ''
                 yield code
-    def insert(bytestring):
-        '''
-        AddStringToTable() from pseudocode.
-
-        This comment from p.61 of TIFF6.pdf actually should apply to this
-        subroutine, since GetNextCode() (`nextcode` here) doesn't modify the
-        table and doesn't even need to know about it:
-
-        "The function GetNextCode() retrieves the next code from the
-         LZW-coded data. It must keep track of bit boundaries. It knows
-         that the first code that it gets will be a 9-bit code. We add
-         a table entry each time we get a code. So, GetNextCode() must
-         switch over to 10-bit codes as soon as string #510 is stored
-         into the table. Similarly, the switch is made to 11-bit codes
-         after #1022 and to 12-bit codes after #2046.
-
-        One thing the pseudocode doesn't mention is that an unknown code
-        shouldn't be more than 1 plus the highest known code, or it is
-        an error in the codestream. We will trap this below.
-        '''
-        nonlocal bitlength
-        newkey = len(codedict)
-        codedict[newkey] = bytestring
-        doctest_debug('added 0x%x (%d), key %d bytes ...%s to dict',
-                      newkey, newkey, len(bytestring), bytestring[-16:])
-        if (newkey + 2).bit_length() == (newkey + 1).bit_length() + 1:
-            if bitlength < maxbits:
-                doctest_debug(
-                    'increasing bitlength to %d at code %d',
-                    bitlength + 1, newkey)
-                bitlength += 1
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
     bitstream = ''
@@ -266,7 +235,8 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             doctest_debug('writing out %d bytes', len(codevalue))
             outstream.write(codevalue)  # WriteString(OutString);
             if storevalue is not None:  # if (StoreString != null)
-                insert(storevalue)  # AddStringToTable(StoreString);
+                bitlength = add_string_to_table(storevalue, codedict,
+                                                bitlength, maxbits)
             lastvalue = codevalue  # OldCode = Code
         elif code == END_OF_INFO_CODE:
             if EOI_IS_EOD:
@@ -287,6 +257,40 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                           instream.tell(), outstream.tell())
         except OSError:  # ignore Illegal Seek during doctests with BytesIO
             pass
+
+def add_string_to_table(bytestring, codedict, bitlength, maxbits):
+    '''
+    AddStringToTable() from pseudocode.
+
+    This comment from p.61 of TIFF6.pdf actually should apply to this
+    subroutine, since GetNextCode() (`nextcode` here) doesn't modify the
+    table and doesn't even need to know about it:
+
+    "The function GetNextCode() retrieves the next code from the
+     LZW-coded data. It must keep track of bit boundaries. It knows
+     that the first code that it gets will be a 9-bit code. We add
+     a table entry each time we get a code. So, GetNextCode() must
+     switch over to 10-bit codes as soon as string #510 is stored
+     into the table. Similarly, the switch is made to 11-bit codes
+     after #1022 and to 12-bit codes after #2046.
+
+    One thing the pseudocode doesn't mention is that an unknown code
+    shouldn't be more than 1 plus the highest known code, or it is
+    an error in the codestream. We will trap this below.
+
+    (This was a nested subroutine, but moved it outside for profiling.)
+    '''
+    newkey = len(codedict)
+    codedict[newkey] = bytestring
+    doctest_debug('added 0x%x (%d), key %d bytes ...%s to dict',
+                  newkey, newkey, len(bytestring), bytestring[-16:])
+    if (newkey + 2).bit_length() == (newkey + 1).bit_length() + 1:
+        if bitlength < maxbits:
+            doctest_debug(
+                'increasing bitlength to %d at code %d',
+                bitlength + 1, newkey)
+            bitlength += 1
+    return bitlength
 
 def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
            minbits=9, maxbits=12, stripsize=8192):
