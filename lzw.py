@@ -161,7 +161,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
         requires Python 3.8 or better for 'walrus' (:=) operator
         '''
         nonlocal bitstream
-        logging.debug('nextcode(): bitstream=%r', bitstream)
+        doctest_debug('nextcode(): bitstream=%r', bitstream)
         while not end_of_data and (byte := instream.read(1)):
             rawbyte = ord(byte)
             doctest_debug("input byte b'\\x%02x'", rawbyte)
@@ -173,7 +173,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 doctest_debug('nextcode: 0x%x (%d) %s', code, code, bincode)
                 if code == END_OF_INFO_CODE:
                     if bitstream.strip('0'):
-                        logging.info('bitstream: %s', bitstream)
+                        doctest_debug('bitstream: %s', bitstream)
                         raise ValueError('nonzero bits remaining after EOI')
                     bitstream = ''
                 yield code
@@ -383,7 +383,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 bitstream = bitstream[8:]
             if number == CLEAR_CODE:
                 if writecount > CODE_SIZE:  # original dict size
-                    logging.debug('%d codes written since last ClearCode',
+                    doctest_debug('%d codes written since last ClearCode',
                                   writecount)
                 writecount = CODE_SIZE
             else:
@@ -397,11 +397,11 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             #doctest_debug('writecount: %d', writecount)
             elif (writecount + 2) == (2 ** bitlength):
                 if bitlength < maxbits:
-                    logging.debug('increasing bitlength to %d at code %d',
+                    doctest_debug('increasing bitlength to %d at code %d',
                                   bitlength + 1, writecount)
                     bitlength += 1
                 else:
-                    logging.debug('clearing table at code %d', writecount)
+                    doctest_debug('clearing table at code %d', writecount)
                     clear_string_table()
 
         def add_table_entry(entry):
