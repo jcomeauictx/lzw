@@ -408,56 +408,6 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                     doctest_debug('clearing table at code %d', writecount)
                     clear_string_table()
 
-        def add_table_entry(entry):
-            '''
-            add a new bytes-to-integer-code mapping
-
-            just before doubling table size, increment bitlength;
-            i.e. after entering table entry 511, raise it from 9 to 10;
-            after entering table entry 1023, raise it from 10 to 11;
-            and after table entry 2047, raise it from 11 to 12.
-            as soon as we use entry 4094, we write out a 12-bit
-            ClearCode, and reinit the table.
-
-            NOTE that in the above paragraph, "table" size includes the
-            two special codes, which are *not* actually present in the
-            code_from_string dict.
-
-            NOTE also that entry 511 could mean the 512th entry with code
-            511, or the 511th entry with code 510. Need to find out what
-            works.
-
-            Final NOTE: the following text in italics on P. 60 of TIFF6.pdf
-            turns out to be the determinant:
-
-            "Whenever you add a code to the output stream, it “counts”
-             toward the decision about bumping the code bit length. This
-             is important when writing the last code word before an EOI
-             code or ClearCode, to avoid code length errors."
-
-            So the above part about the number of table entries was a
-            lie, or at minimum an oversimplification. The decoder is going
-            to raise bitlength when it sees (2 ** bitlength - 2) codes.
-            So, when the encoder sends the 254th code right before EOI,
-            it has to send EOI as a 10-bit code even though that last
-            `WriteCode(CodeFromString(Omega))`, outside the loop, didn't
-            add a table entry.
-
-            Accordingly, we move the bitlength-incrementing code to
-            the `write_code` subroutine.
-            '''
-            doctest_debug('add_table_entry(...%r) (length %d)',
-                          entry[-16:], len(entry))
-            if not entry:
-                return
-            # table is built without entries for ClearCode and
-            # EndOfInformation, so it starts at 256 elements exactly.
-            # the first new entry's code then has to be 258,
-            # which is len(table)+2.
-            newcode = len(code_from_string) + 2
-            code_from_string[entry] = newcode
-            doctest_debug('added 0x%x (%d), key %d bytes ...%s to dict',
-                          newcode, newcode, len(entry), entry[-16:])
 
         nonlocal prefix, code_from_string
         doctest_debug('beginning packstrip(...%s), length %d, prefix length %d',
@@ -499,7 +449,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 # NOTE we need to reverse the order of the pseudocode above,
                 # since write_code now adjusts bitlength instead of
                 # add_table_entry. see notes under add_table_entry().
-                add_table_entry(prefix + byte)
+                add_table_entry(prefix + byte, code_from_string)
                 write_code(code_from_string.get(prefix, None))
                 prefix = byte
         # WriteCode (CodeFromString(Omega));
@@ -535,6 +485,60 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     if EOI_IS_EOD:
         packstrip(b'')
     logging.debug('ending lzw.encode()')
+
+def add_table_entry(entry, codedict):
+    '''
+    add a new bytes-to-integer-code mapping
+
+    just before doubling table size, increment bitlength;
+    i.e. after entering table entry 511, raise it from 9 to 10;
+    after entering table entry 1023, raise it from 10 to 11;
+    and after table entry 2047, raise it from 11 to 12.
+    as soon as we use entry 4094, we write out a 12-bit
+    ClearCode, and reinit the table.
+
+    NOTE that in the above paragraph, "table" size includes the
+    two special codes, which are *not* actually present in the
+    code_from_string dict.
+
+    NOTE also that entry 511 could mean the 512th entry with code
+    511, or the 511th entry with code 510. Need to find out what
+    works.
+
+    Final NOTE: the following text in italics on P. 60 of TIFF6.pdf
+    turns out to be the determinant:
+
+    "Whenever you add a code to the output stream, it “counts”
+     toward the decision about bumping the code bit length. This
+     is important when writing the last code word before an EOI
+     code or ClearCode, to avoid code length errors."
+
+    So the above part about the number of table entries was a
+    lie, or at minimum an oversimplification. The decoder is going
+    to raise bitlength when it sees (2 ** bitlength - 2) codes.
+    So, when the encoder sends the 254th code right before EOI,
+    it has to send EOI as a 10-bit code even though that last
+    `WriteCode(CodeFromString(Omega))`, outside the loop, didn't
+    add a table entry.
+
+    Accordingly, we move the bitlength-incrementing code to
+    the `write_code` subroutine.
+
+    (This was previously a nested subroutine of `packstrip`.
+     Moved here for profiling purposes.)
+    '''
+    doctest_debug('add_table_entry(...%r) (length %d)',
+                  entry[-16:], len(entry))
+    if not entry:
+        return
+    # table is built without entries for ClearCode and
+    # EndOfInformation, so it starts at 256 elements exactly.
+    # the first new entry's code then has to be 258,
+    # which is len(table)+2.
+    newcode = len(codedict) + 2
+    codedict[entry] = newcode
+    doctest_debug('added 0x%x (%d), key %d bytes ...%s to dict',
+                  newcode, newcode, len(entry), entry[-16:])
 
 def dispatch(allowed, args, minargs, binary=True):
     '''
