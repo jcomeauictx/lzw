@@ -177,6 +177,37 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                         raise ValueError('nonzero bits remaining after EOI')
                     bitstream = ''
                 yield code
+    def insert(bytestring):
+        '''
+        AddStringToTable() from pseudocode.
+
+        This comment from p.61 of TIFF6.pdf actually should apply to this
+        subroutine, since GetNextCode() (`nextcode` here) doesn't modify the
+        table and doesn't even need to know about it:
+
+        "The function GetNextCode() retrieves the next code from the
+         LZW-coded data. It must keep track of bit boundaries. It knows
+         that the first code that it gets will be a 9-bit code. We add
+         a table entry each time we get a code. So, GetNextCode() must
+         switch over to 10-bit codes as soon as string #510 is stored
+         into the table. Similarly, the switch is made to 11-bit codes
+         after #1022 and to 12-bit codes after #2046.
+
+        One thing the pseudocode doesn't mention is that an unknown code
+        shouldn't be more than 1 plus the highest known code, or it is
+        an error in the codestream. We will trap this below.
+        '''
+        nonlocal bitlength
+        newkey = len(codedict)
+        codedict[newkey] = bytestring
+        doctest_debug('added 0x%x (%d), key %d bytes ...%s to dict',
+                      newkey, newkey, len(bytestring), bytestring[-16:])
+        if (newkey + 2).bit_length() == (newkey + 1).bit_length() + 1:
+            if bitlength < maxbits:
+                doctest_debug(
+                    'increasing bitlength to %d at code %d',
+                    bitlength + 1, newkey)
+                bitlength += 1
     instream = instream or sys.stdin.buffer
     outstream = outstream or sys.stdout.buffer
     bitstream = ''
@@ -235,8 +266,7 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
             doctest_debug('writing out %d bytes', len(codevalue))
             outstream.write(codevalue)  # WriteString(OutString);
             if storevalue is not None:  # if (StoreString != null)
-                bitlength = add_string_to_table(storevalue, codedict,
-                                                bitlength, maxbits)
+                insert(storevalue)  # AddStringToTable(StoreString);
             lastvalue = codevalue  # OldCode = Code
         elif code == END_OF_INFO_CODE:
             if EOI_IS_EOD:
@@ -257,40 +287,6 @@ def decode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                           instream.tell(), outstream.tell())
         except OSError:  # ignore Illegal Seek during doctests with BytesIO
             pass
-
-def add_string_to_table(bytestring, codedict, bitlength, maxbits):
-    '''
-    AddStringToTable() from pseudocode.
-
-    This comment from p.61 of TIFF6.pdf actually should apply to this
-    subroutine, since GetNextCode() (`nextcode` here) doesn't modify the
-    table and doesn't even need to know about it:
-
-    "The function GetNextCode() retrieves the next code from the
-     LZW-coded data. It must keep track of bit boundaries. It knows
-     that the first code that it gets will be a 9-bit code. We add
-     a table entry each time we get a code. So, GetNextCode() must
-     switch over to 10-bit codes as soon as string #510 is stored
-     into the table. Similarly, the switch is made to 11-bit codes
-     after #1022 and to 12-bit codes after #2046.
-
-    One thing the pseudocode doesn't mention is that an unknown code
-    shouldn't be more than 1 plus the highest known code, or it is
-    an error in the codestream. We will trap this below.
-
-    (This was a nested subroutine, but moved it outside for profiling.)
-    '''
-    newkey = len(codedict)
-    codedict[newkey] = bytestring
-    doctest_debug('added 0x%x (%d), key %d bytes ...%s to dict',
-                  newkey, newkey, len(bytestring), bytestring[-16:])
-    if (newkey + 2).bit_length() == (newkey + 1).bit_length() + 1:
-        if bitlength < maxbits:
-            doctest_debug(
-                'increasing bitlength to %d at code %d',
-                bitlength + 1, newkey)
-            bitlength += 1
-    return bitlength
 
 def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
            minbits=9, maxbits=12, stripsize=8192):
@@ -408,6 +404,56 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                     doctest_debug('clearing table at code %d', writecount)
                     clear_string_table()
 
+        def add_table_entry(entry):
+            '''
+            add a new bytes-to-integer-code mapping
+
+            just before doubling table size, increment bitlength;
+            i.e. after entering table entry 511, raise it from 9 to 10;
+            after entering table entry 1023, raise it from 10 to 11;
+            and after table entry 2047, raise it from 11 to 12.
+            as soon as we use entry 4094, we write out a 12-bit
+            ClearCode, and reinit the table.
+
+            NOTE that in the above paragraph, "table" size includes the
+            two special codes, which are *not* actually present in the
+            code_from_string dict.
+
+            NOTE also that entry 511 could mean the 512th entry with code
+            511, or the 511th entry with code 510. Need to find out what
+            works.
+
+            Final NOTE: the following text in italics on P. 60 of TIFF6.pdf
+            turns out to be the determinant:
+
+            "Whenever you add a code to the output stream, it “counts”
+             toward the decision about bumping the code bit length. This
+             is important when writing the last code word before an EOI
+             code or ClearCode, to avoid code length errors."
+
+            So the above part about the number of table entries was a
+            lie, or at minimum an oversimplification. The decoder is going
+            to raise bitlength when it sees (2 ** bitlength - 2) codes.
+            So, when the encoder sends the 254th code right before EOI,
+            it has to send EOI as a 10-bit code even though that last
+            `WriteCode(CodeFromString(Omega))`, outside the loop, didn't
+            add a table entry.
+
+            Accordingly, we move the bitlength-incrementing code to
+            the `write_code` subroutine.
+            '''
+            doctest_debug('add_table_entry(...%r) (length %d)',
+                          entry[-16:], len(entry))
+            if not entry:
+                return
+            # table is built without entries for ClearCode and
+            # EndOfInformation, so it starts at 256 elements exactly.
+            # the first new entry's code then has to be 258,
+            # which is len(table)+2.
+            newcode = len(code_from_string) + 2
+            code_from_string[entry] = newcode
+            doctest_debug('added 0x%x (%d), key %d bytes ...%s to dict',
+                          newcode, newcode, len(entry), entry[-16:])
 
         nonlocal prefix, code_from_string
         doctest_debug('beginning packstrip(...%s), length %d, prefix length %d',
@@ -449,7 +495,7 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
                 # NOTE we need to reverse the order of the pseudocode above,
                 # since write_code now adjusts bitlength instead of
                 # add_table_entry. see notes under add_table_entry().
-                add_table_entry(prefix + byte, code_from_string)
+                add_table_entry(prefix + byte)
                 write_code(code_from_string.get(prefix, None))
                 prefix = byte
         # WriteCode (CodeFromString(Omega));
@@ -485,60 +531,6 @@ def encode(instream=None, outstream=None, # pylint: disable=too-many-arguments
     if EOI_IS_EOD:
         packstrip(b'')
     logging.debug('ending lzw.encode()')
-
-def add_table_entry(entry, codedict):
-    '''
-    add a new bytes-to-integer-code mapping
-
-    just before doubling table size, increment bitlength;
-    i.e. after entering table entry 511, raise it from 9 to 10;
-    after entering table entry 1023, raise it from 10 to 11;
-    and after table entry 2047, raise it from 11 to 12.
-    as soon as we use entry 4094, we write out a 12-bit
-    ClearCode, and reinit the table.
-
-    NOTE that in the above paragraph, "table" size includes the
-    two special codes, which are *not* actually present in the
-    code_from_string dict.
-
-    NOTE also that entry 511 could mean the 512th entry with code
-    511, or the 511th entry with code 510. Need to find out what
-    works.
-
-    Final NOTE: the following text in italics on P. 60 of TIFF6.pdf
-    turns out to be the determinant:
-
-    "Whenever you add a code to the output stream, it “counts”
-     toward the decision about bumping the code bit length. This
-     is important when writing the last code word before an EOI
-     code or ClearCode, to avoid code length errors."
-
-    So the above part about the number of table entries was a
-    lie, or at minimum an oversimplification. The decoder is going
-    to raise bitlength when it sees (2 ** bitlength - 2) codes.
-    So, when the encoder sends the 254th code right before EOI,
-    it has to send EOI as a 10-bit code even though that last
-    `WriteCode(CodeFromString(Omega))`, outside the loop, didn't
-    add a table entry.
-
-    Accordingly, we move the bitlength-incrementing code to
-    the `write_code` subroutine.
-
-    (This was previously a nested subroutine of `packstrip`.
-     Moved here for profiling purposes.)
-    '''
-    doctest_debug('add_table_entry(...%r) (length %d)',
-                  entry[-16:], len(entry))
-    if not entry:
-        return
-    # table is built without entries for ClearCode and
-    # EndOfInformation, so it starts at 256 elements exactly.
-    # the first new entry's code then has to be 258,
-    # which is len(table)+2.
-    newcode = len(codedict) + 2
-    codedict[entry] = newcode
-    doctest_debug('added 0x%x (%d), key %d bytes ...%s to dict',
-                  newcode, newcode, len(entry), entry[-16:])
 
 def dispatch(allowed, args, minargs, binary=True):
     '''
