@@ -175,9 +175,8 @@ class LZWReader(CodeReader):
     46
 
     # Test case from TIFF6.pdf pages 59-60 (see lzw.py for complete example)
-    >>> decode = LZWReader(io.BytesIO(codes)).read()
     >>> codes = b'\x80\x01\xe0@\x80D\x08\x0c\x06\x80\x80'
-    >>> decode(codes)
+    >>> LZWReader(io.BytesIO(codes)).read()
     '''
     def __init__(self, stream, buffer_size=BUFFER_SIZE,
                  minbits=MINBITS, maxbits=MAXBITS):
@@ -217,7 +216,7 @@ class LZWReader(CodeReader):
         #            }
             try:
                 storestring = self.codedict[self.oldcode] + outstring[0:1]
-            except KeyError:
+            except (KeyError, TypeError):
                 storestring = None
         #        } else {
         #            OutString = StringFromCode(OldCode) +
