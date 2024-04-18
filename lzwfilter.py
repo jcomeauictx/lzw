@@ -4,7 +4,7 @@ Lempel-Ziv-Welch compression and decompression
 
 A different approach, hopefully cleaner and faster than lzw.py
 '''
-import io, math, logging  # pylint: disable=multiple-imports
+import sys, io, math, logging  # pylint: disable=multiple-imports
 
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
 
@@ -79,7 +79,7 @@ class CodeReader(io.BufferedReader):
         return result
 
 class LZWReader(CodeReader):
-    '''
+    r'''
     Implementation of LZW decompressor
  
     adapted from pseudocode on page 61 of TIFF6.pdf
@@ -155,7 +155,7 @@ class LZWReader(CodeReader):
         }
 
     Test cases from https://rosettacode.org/wiki/LZW_compression
-    >>> decode = lambda codes: LZWReader(BytesIO(codes)).read()
+    >>> decode = lambda codes: LZWReader(iter(codes)).read()
     >>> codes = [84,79,66,69,79,82,78,79,84,256,258,260,265,259,261,263]
     >>> decode(codes)
     b'TOBEORNOTTOBEORTOBEORNOT'
@@ -173,11 +173,22 @@ class LZWReader(CodeReader):
     True
     >>> check.index(b'---   Heraclitus  [540 -- 475 BCE]')
     46
+
+    # Test case from TIFF6.pdf pages 59-60 (see lzw.py for complete example)
+    >>> decode = LZWReader(io.BytesIO(codes)).read()
+    >>> codes = b'\x80\x01\xe0@\x80D\x08\x0c\x06\x80\x80'
+    >>> decode(codes)
     '''
     def __init__(self, stream, buffer_size=BUFFER_SIZE,
                  minbits=MINBITS, maxbits=MAXBITS):
-        super().__init__(stream, buffer_size, minbits, maxbits)
-        self.codedict = dict(SPECIAL).update(STRINGTABLE)
+        try:
+            super().__init__(stream, buffer_size, minbits, maxbits)
+            self.codesource = super()
+        except AttributeError:
+            logging.warning('Using non-CodeReader iterator for test purposes')
+            self.stream = stream
+            self.codesource = self.stream
+        self.codedict = self.initialize_table()
         self.oldcode = None
         self.buffer = bytearray()
 
@@ -186,13 +197,13 @@ class LZWReader(CodeReader):
         returns next string from table, adjusting bitlength as we go
         '''
         # while ((Code = GetNextCode()) != EoiCode) {
-        code = next(super())
+        code = next(self.codesource)
         if code == END_OF_INFO_CODE:
             raise StopIteration
         #    if (Code == ClearCode) {
         #        InitializeTable();
         if code == CLEAR_CODE:
-            self.codedict = dict(SPECIAL).update(STRINGTABLE)
+            self.codedict = self.initialize_table()
         #    else {
         #        if (IsInTable(Code)) {
         #            OutString = StringFromCode(Code);
@@ -214,7 +225,7 @@ class LZWReader(CodeReader):
         #            StoreString = OutString;
         #        }
         else:
-            outstring = self.codedict[oldcode]
+            outstring = self.codedict[self.oldcode]
             outstring += outstring[0:1]
             storestring = outstring
         #        WriteString(OutString);
@@ -226,12 +237,19 @@ class LZWReader(CodeReader):
         self.oldcode = code
         return outstring
 
+    def initialize_table(self):
+        '''
+        (Re-)Initialize code table
+        '''
+        codedict = dict(STRINGTABLE)
+        codedict.update(SPECIAL)
+        return codedict
+
     def read(self, count=None):
         '''
         Return `count` bytes, defaulting to all available
         '''
         count = count or sys.maxsize
-        offset = 0
         while len(self.buffer) < count:
             try:
                 self.buffer.extend(next(self))
@@ -241,10 +259,13 @@ class LZWReader(CodeReader):
         self.buffer[:count] = []
         return result
 
-    def add_string_to_table(string):
-        newkey = len(self.codetable)
-        self.codetable[key] = string
-                
+    def add_string_to_table(self, bytestring):
+        '''
+        Add bytestring to code table
+        '''
+        newkey = len(self.codedict)
+        self.codedict[newkey] = bytestring
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
