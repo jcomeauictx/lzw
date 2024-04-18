@@ -47,9 +47,9 @@ clean:
 distclean: clean
 	rm -f fixedcard.pdf *.rej *.check *.doctest *.pylint *.raw
 %.pylint: %.py
-	pylint $< > $@
+	pylint $< | tee $@
 %.doctest: %.py
-	python3 -m doctest $< > $@
+	python3 -m doctest $< | tee $@
 env:
 	if [ -z $(SHOW_ENV) ]; then \
 	 $(MAKE) SHOW_ENV=1 $@; \
