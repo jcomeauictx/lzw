@@ -12,7 +12,7 @@ ifneq ($(SHOW_ENV),)
 else
   export PYTHON_DEBUGGING EOI_IS_EOD
 endif
-all: lzw.pylint lzw.doctest card.view
+all: lzwfilter.pylint lzwfilter.doctest
 %.gs: %.pdf /usr/bin/pdf2ps
 	pdf2ps $< $@
 %.ps: %.pdf /usr/bin/pdftops

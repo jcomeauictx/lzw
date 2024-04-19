@@ -4,7 +4,7 @@ Lempel-Ziv-Welch compression and decompression
 
 A different approach, hopefully cleaner and faster than lzw.py
 '''
-import sys, io, math, logging  # pylint: disable=multiple-imports
+import sys, os, io, math, logging  # pylint: disable=multiple-imports
 
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
 
@@ -18,6 +18,12 @@ CODETABLE = dict(map(reversed, STRINGTABLE.items()))  # strings to codes
 CLEAR_CODE = 256  # see TIFF6.pdf pp. 58-63 for use of special codes
 END_OF_INFO_CODE = 257
 SPECIAL = {CLEAR_CODE: None, END_OF_INFO_CODE: None}
+
+def doctest_debug(*args):  # pylint: disable=unused-argument
+    '''
+    redefined below if running doctest module
+    '''
+    return
 
 class CodeReader(io.BufferedReader):
     r'''
@@ -182,12 +188,10 @@ class LZWReader(CodeReader):
                  minbits=MINBITS, maxbits=MAXBITS):
         try:
             super().__init__(stream, buffer_size, minbits, maxbits)
-            self.codesource = super(LZWReader, self)
+            self.codesource = super()
         except AttributeError:
             logging.warning('Using non-CodeReader iterator for test purposes')
-            self.stream = stream
-            self.codesource = self.stream
-        logging.debug('self.codesource: %s', self.codesource)
+            self.codesource = stream
         self.codedict = self.initialize_table()
         self.oldcode = None
         self.buffer = bytearray()
@@ -198,6 +202,7 @@ class LZWReader(CodeReader):
         '''
         # while ((Code = GetNextCode()) != EoiCode) {
         code = next(self.codesource)
+        doctest_debug('next LZW code: %s', code)
         if code == END_OF_INFO_CODE:
             raise StopIteration
         #    if (Code == ClearCode) {
@@ -252,7 +257,9 @@ class LZWReader(CodeReader):
         count = count or sys.maxsize
         while len(self.buffer) < count:
             try:
-                self.buffer.extend(next(self))
+                chunk = next(self)
+                doctest_debug('next chunk: %s', chunk)
+                self.buffer.extend(chunk)
             except StopIteration:
                 break
         result = bytes(self.buffer[:count])
@@ -266,6 +273,16 @@ class LZWReader(CodeReader):
         if bytestring is not None:
             newkey = len(self.codedict)
             self.codedict[newkey] = bytestring
+            doctest_debug('set codedict[%d] = ...%s', newkey, bytestring[-10:])
+
+if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
+                    os.getenv('PYTHON_DEBUGGING'):
+    # pylint: disable=function-redefined
+    def doctest_debug(*args):
+        '''
+        use logging.debug only during doctest
+        '''
+        logging.debug(*args)
 
 if __name__ == '__main__':
     import doctest
