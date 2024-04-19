@@ -188,7 +188,7 @@ class LZWReader(CodeReader):
                  minbits=MINBITS, maxbits=MAXBITS):
         try:
             super().__init__(stream, buffer_size, minbits, maxbits)
-            self.codesource = super()
+            self.codesource = CodeReader(stream)
         except AttributeError:
             logging.warning('Using non-CodeReader iterator for test purposes')
             self.codesource = stream
