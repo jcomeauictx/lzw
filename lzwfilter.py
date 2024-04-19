@@ -175,11 +175,11 @@ class LZWReader(CodeReader):
     ...     32,72,259,97,99,108,105,116,117,264,32,91,53,52,48,32,299,
     ...     52,55,53,32,66,67,69,93]
     >>> check = decode(codes)
-    >>> parts = check.split(b'.')
-    >>> parts[0] + b'.'
+    >>> divider = check.index(b'.') + 2
+    >>> check[:divider]
     b'"There is nothing permanent except change."'
-    >>> parts[1]
-    b'---   Heraclitus  [540 -- 475 BCE]'
+    >>> check[divider:]
+    b'   ---   Heraclitus  [540 -- 475 BCE]'
 
     # Test case from TIFF6.pdf pages 59-60 (see lzw.py for complete example)
     >>> codes = b'\x80\x01\xe0@\x80D\x08\x0c\x06\x80\x80'
@@ -203,45 +203,24 @@ class LZWReader(CodeReader):
         '''
         returns next string from table, adjusting bitlength as we go
         '''
-        # while ((Code = GetNextCode()) != EoiCode) {
         code = next(self.codesource)
         doctest_debug('next LZW code: %s', code)
-        if code == END_OF_INFO_CODE:
+        if code == END_OF_INFO_CODE and self.special:
             raise StopIteration
-        #    if (Code == ClearCode) {
-        #        InitializeTable();
-        if code == CLEAR_CODE:
+        if code == CLEAR_CODE and self.special:
             self.codedict = self.initialize_table()
-        #    else {
-        #        if (IsInTable(Code)) {
-        #            OutString = StringFromCode(Code);
         elif code in self.codedict:
             outstring = self.codedict[code]
-        #            try {
-        #                StoreString = StringFromCode(OldCode) +
-        #                    FirstChar(StringFromCode(Code);
-        #            } except(NoOldCodeImmediatelyAfterClearCode) {
-        #                StoreString = null;
-        #            }
             try:
                 storestring = self.codedict[self.oldcode] + outstring[0:1]
             except (KeyError, TypeError):
                 storestring = None
-        #        } else {
-        #            OutString = StringFromCode(OldCode) +
-        #                FirstChar(StringFromCode(OldCode);
-        #            StoreString = OutString;
-        #        }
         else:
             outstring = self.codedict[self.oldcode]
             outstring += outstring[0:1]
             storestring = outstring
-        #        WriteString(OutString);
-        #        if (StoreString != null) AddStringToTable(StoreString);
-        #        OldCode = Code;
-        #    }
-        # }
-        self.add_string_to_table(storestring)
+        if storestring:
+            self.add_string_to_table(storestring)
         self.oldcode = code
         return outstring
 
