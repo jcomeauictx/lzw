@@ -19,8 +19,11 @@ class C(B):
 
 if __name__ == '__main__':
     c = C()
+    logging.debug('c: %s: %s', c, vars(c))
     b = super(C, c)
+    logging.debug('b: %s: %s', b, vars(b))
     a = super(B, c)
+    logging.debug('a: %s: %s', a, vars(a))
     logging.debug('C class msg: %s, message: %s', c.msg, c.message)
     logging.debug('C parent class msg: %s, message: %s', b.msg, b.message)
     logging.debug('C grandparent class msg: %s, message: %s', a.msg, a.message)
