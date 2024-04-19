@@ -49,7 +49,7 @@ distclean: clean
 %.pylint: %.py
 	pylint $< | tee $@
 %.doctest: %.py
-	python3 -m doctest $< | tee $@
+	python3 -m doctest $< 2>&1 | tee $@
 env:
 	if [ -z $(SHOW_ENV) ]; then \
 	 $(MAKE) SHOW_ENV=1 $@; \
