@@ -184,6 +184,7 @@ class LZWReader(CodeReader):
     # Test case from TIFF6.pdf pages 59-60 (see lzw.py for complete example)
     >>> codes = b'\x80\x01\xe0@\x80D\x08\x0c\x06\x80\x80'
     >>> LZWReader(io.BytesIO(codes)).read()
+    b'\x07\x07\x07\x08\x08\x07\x07\x06\x06'
     '''
     def __init__(self, stream, buffer_size=BUFFER_SIZE,
                  minbits=MINBITS, maxbits=MAXBITS, special=True):
@@ -204,6 +205,7 @@ class LZWReader(CodeReader):
         returns next string from table, adjusting bitlength as we go
         '''
         code = next(self.codesource)
+        outstring = storestring = None
         doctest_debug('next LZW code: %s', code)
         if code == END_OF_INFO_CODE and self.special:
             raise StopIteration
@@ -213,16 +215,16 @@ class LZWReader(CodeReader):
             outstring = self.codedict[code]
             try:
                 storestring = self.codedict[self.oldcode] + outstring[0:1]
-            except (KeyError, TypeError):
-                storestring = None
+            except (KeyError, TypeError):  # oldcode or outstring is None
+                pass
         else:
             outstring = self.codedict[self.oldcode]
             outstring += outstring[0:1]
             storestring = outstring
-        if storestring:
+        if storestring is not None:
             self.add_string_to_table(storestring)
         self.oldcode = code
-        return outstring
+        return outstring or b''  # don't return None if ClearCode
 
     def initialize_table(self):
         '''
