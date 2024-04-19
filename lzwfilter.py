@@ -175,10 +175,11 @@ class LZWReader(CodeReader):
     ...     32,72,259,97,99,108,105,116,117,264,32,91,53,52,48,32,299,
     ...     52,55,53,32,66,67,69,93]
     >>> check = decode(codes)
-    >>> check.startswith(b'"There is nothing permanent except change."')
-    True
-    >>> check.index(b'---   Heraclitus  [540 -- 475 BCE]')
-    46
+    >>> parts = check.split(b'.')
+    >>> parts[0] + b'.'
+    b'"There is nothing permanent except change."'
+    >>> parts[1]
+    b'---   Heraclitus  [540 -- 475 BCE]'
 
     # Test case from TIFF6.pdf pages 59-60 (see lzw.py for complete example)
     >>> codes = b'\x80\x01\xe0@\x80D\x08\x0c\x06\x80\x80'
@@ -188,6 +189,7 @@ class LZWReader(CodeReader):
                  minbits=MINBITS, maxbits=MAXBITS):
         try:
             super().__init__(stream, buffer_size, minbits, maxbits)
+            doctest_debug('Using CodeReader(%s) iterator', stream)
             self.codesource = CodeReader(stream)
         except AttributeError:
             logging.warning('Using non-CodeReader iterator for test purposes')
