@@ -161,7 +161,7 @@ class LZWReader(CodeReader):
         }
 
     Test cases from https://rosettacode.org/wiki/LZW_compression
-    >>> decode = lambda codes: LZWReader(iter(codes)).read()
+    >>> decode = lambda codes: LZWReader(iter(codes), special=False).read()
     >>> codes = [84,79,66,69,79,82,78,79,84,256,258,260,265,259,261,263]
     >>> decode(codes)
     b'TOBEORNOTTOBEORTOBEORNOT'
@@ -186,7 +186,7 @@ class LZWReader(CodeReader):
     >>> LZWReader(io.BytesIO(codes)).read()
     '''
     def __init__(self, stream, buffer_size=BUFFER_SIZE,
-                 minbits=MINBITS, maxbits=MAXBITS):
+                 minbits=MINBITS, maxbits=MAXBITS, special=True):
         try:
             super().__init__(stream, buffer_size, minbits, maxbits)
             doctest_debug('Using CodeReader(%s) iterator', stream)
@@ -194,6 +194,7 @@ class LZWReader(CodeReader):
         except AttributeError:
             logging.warning('Using non-CodeReader iterator for test purposes')
             self.codesource = stream
+        self.special = special  # False for rosettacode.org examples
         self.codedict = self.initialize_table()
         self.oldcode = None
         self.buffer = bytearray()
@@ -214,7 +215,7 @@ class LZWReader(CodeReader):
         #    else {
         #        if (IsInTable(Code)) {
         #            OutString = StringFromCode(Code);
-        if code in self.codedict:
+        elif code in self.codedict:
             outstring = self.codedict[code]
         #            try {
         #                StoreString = StringFromCode(OldCode) +
@@ -249,7 +250,8 @@ class LZWReader(CodeReader):
         (Re-)Initialize code table
         '''
         codedict = dict(STRINGTABLE)
-        codedict.update(SPECIAL)
+        if self.special:
+            codedict.update(SPECIAL)
         return codedict
 
     def read(self, count=None):
