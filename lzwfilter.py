@@ -182,11 +182,12 @@ class LZWReader(CodeReader):
                  minbits=MINBITS, maxbits=MAXBITS):
         try:
             super().__init__(stream, buffer_size, minbits, maxbits)
-            self.codesource = super()
+            self.codesource = super(LZWReader, self)
         except AttributeError:
             logging.warning('Using non-CodeReader iterator for test purposes')
             self.stream = stream
             self.codesource = self.stream
+        logging.debug('self.codesource: %s', self.codesource)
         self.codedict = self.initialize_table()
         self.oldcode = None
         self.buffer = bytearray()
@@ -262,8 +263,9 @@ class LZWReader(CodeReader):
         '''
         Add bytestring to code table
         '''
-        newkey = len(self.codedict)
-        self.codedict[newkey] = bytestring
+        if bytestring is not None:
+            newkey = len(self.codedict)
+            self.codedict[newkey] = bytestring
 
 if __name__ == '__main__':
     import doctest
