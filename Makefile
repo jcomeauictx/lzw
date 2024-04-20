@@ -78,9 +78,15 @@ packtest: $(HOME)/tmp/sample.rgb.reunpacked
 	diff -y <(head -c $(BYTECOUNT) $* | xxd) \
 	 <(head -c $(BYTECOUNT) $< | xxd)
 check: card.lzw.check card.rgb.check
-encode.profile: lzw.py card.rgb
+lzw.encode.profile: lzw.py card.rgb
 	python3 -c "import cProfile; \
 	 from lzw import encode; \
 	 instream = open('card.rgb', 'rb'); \
 	 outstream = open('/tmp/card.lzw.tmp', 'wb'); \
-	 cProfile.run('encode(instream, outstream)')" > $@
+	 cProfile.run('encode(instream, outstream)')" | tee $@
+lzwfilter.decode.profile: lzwfilter.py card.lzw
+	python3 -c "import cProfile; \
+	 from lzwfilter import LZWReader as lzwr; \
+	 instream = open('card.lzw', 'rb'); \
+	 outstream = open('/tmp/card.rgb.tmp', 'wb'); \
+	 cProfile.run('outstream.write(lzwr(instream).read())')" | tee $@
