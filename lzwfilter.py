@@ -4,7 +4,7 @@ Lempel-Ziv-Welch compression and decompression
 
 A different approach, hopefully cleaner and faster than lzw.py
 '''
-import sys, os, io, math, logging  # pylint: disable=multiple-imports
+import sys, os, io, logging  # pylint: disable=multiple-imports
 
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
 
@@ -44,7 +44,6 @@ class CodeReader(io.BufferedReader):
         self.bitlength = self.minbits = minbits
         self.maxbits = maxbits
         self.bitstream = bytearray()
-        self.minbytes = int(math.ceil(maxbits / 8))
 
     def __iter__(self):
         '''
@@ -57,15 +56,15 @@ class CodeReader(io.BufferedReader):
         Return the next code from the stream
         '''
         while len(self.bitstream) < self.bitlength:
-            nextbytes = super().read(self.minbytes)
-            if not nextbytes:  # empty string or None: EndOfFile
+            nextbyte = super().read(1)
+            doctest_debug('nextbyte: %s', nextbyte)
+            if not nextbyte:  # empty string or None: EndOfFile
                 if not self.bitstream:
                     raise StopIteration
                 self.bitstream.extend(  # pad remaining bits with zeroes
                     b'0' * (self.bitlength - len(self.bitstream)))
             else:
-                for byte in nextbytes:
-                    self.bitstream.extend(format(byte, '08b').encode())
+                self.bitstream.extend(format(ord(nextbyte), '08b').encode())
         return int(bytes(self.bitstream.pop(0)
                          for index in range(self.bitlength)), 2)
 
@@ -192,7 +191,7 @@ class LZWReader(CodeReader):
         try:
             super().__init__(stream, buffer_size, minbits, maxbits)
             doctest_debug('Using CodeReader(%s) iterator', stream)
-            self.codesource = CodeReader(stream)
+            self.codesource = CodeReader(stream, buffer_size, minbits, maxbits)
         except AttributeError:
             logging.warning('Using non-CodeReader iterator for test purposes')
             self.codesource = stream
@@ -210,6 +209,10 @@ class LZWReader(CodeReader):
         outstring = storestring = None
         doctest_debug('next LZW code: %s', code)
         if code == END_OF_INFO_CODE and self.special:
+            if self.codesource.bitstream.strip(b'0'):
+                logging.error('bitstream remaining: %s',
+                              self.codesource.bitstream)
+                raise ValueError('Nonzero bits left after EOI code')
             raise StopIteration
         if code == CLEAR_CODE and self.special:
             self.initialize_table()
