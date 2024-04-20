@@ -86,7 +86,7 @@ class CodeReader(io.BufferedReader):
 class LZWReader(CodeReader):
     r'''
     Implementation of LZW decompressor
- 
+
     adapted from pseudocode on page 61 of TIFF6.pdf
 
         while ((Code = GetNextCode()) != EoiCode) {
@@ -134,7 +134,7 @@ class LZWReader(CodeReader):
     there will be an exception trying to access OldCode for the first
     in-table Code. We handle it by setting StoreString to null (None) in
     that case. So the complete rewritten pseudocode would be:
-            
+
         while ((Code = GetNextCode()) != EoiCode) {
             if (Code == ClearCode) {
                 InitializeTable();
