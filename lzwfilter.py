@@ -213,6 +213,7 @@ class LZWReader(CodeReader):
                 logging.error('bitstream remaining: %s',
                               self.codesource.bitstream)
                 raise ValueError('Nonzero bits left after EOI code')
+            self.codesource.bitstream[:] = []  # clear the buffer
             raise StopIteration
         if code == CLEAR_CODE and self.special:
             self.initialize_table()
@@ -293,4 +294,3 @@ if __name__ == '__main__':
     with open(sys.argv[1], 'rb') as instream, \
             open(sys.argv[1] + '.dat', 'wb') as outstream:
         outstream.write(LZWReader(instream).read())
-            
