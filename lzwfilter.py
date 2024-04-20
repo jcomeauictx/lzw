@@ -186,8 +186,9 @@ class LZWReader(CodeReader):
     >>> LZWReader(io.BytesIO(codes)).read()
     b'\x07\x07\x07\x08\x08\x07\x07\x06\x06'
     '''
-    def __init__(self, stream, buffer_size=BUFFER_SIZE,
-                 minbits=MINBITS, maxbits=MAXBITS, special=True):
+    def __init__(self, stream, # pylint: disable=too-many-arguments
+                 buffer_size=BUFFER_SIZE, minbits=MINBITS,
+                 maxbits=MAXBITS, special=True):
         try:
             super().__init__(stream, buffer_size, minbits, maxbits)
             doctest_debug('Using CodeReader(%s) iterator', stream)
@@ -196,9 +197,10 @@ class LZWReader(CodeReader):
             logging.warning('Using non-CodeReader iterator for test purposes')
             self.codesource = stream
         self.special = special  # False for rosettacode.org examples
-        self.codedict = self.initialize_table()
+        self.codedict = {}
         self.oldcode = None
         self.buffer = bytearray()
+        self.initialize_table()
 
     def __next__(self):
         '''
@@ -210,7 +212,7 @@ class LZWReader(CodeReader):
         if code == END_OF_INFO_CODE and self.special:
             raise StopIteration
         if code == CLEAR_CODE and self.special:
-            self.codedict = self.initialize_table()
+            self.initialize_table()
         elif code in self.codedict:
             outstring = self.codedict[code]
             try:
@@ -230,10 +232,14 @@ class LZWReader(CodeReader):
         '''
         (Re-)Initialize code table
         '''
-        codedict = dict(STRINGTABLE)
+        self.codedict.clear()
+        self.codedict.update(STRINGTABLE)
         if self.special:
-            codedict.update(SPECIAL)
-        return codedict
+            self.codedict.update(SPECIAL)
+        try:
+            self.codesource.bitlength = self.codesource.minbits
+        except AttributeError:
+            logging.warning('No such attribute self.codesource.bitlength')
 
     def read(self, count=None):
         '''
@@ -259,6 +265,17 @@ class LZWReader(CodeReader):
             newkey = len(self.codedict)
             self.codedict[newkey] = bytestring
             doctest_debug('set codedict[%d] = ...%s', newkey, bytestring[-10:])
+            # at 510, 1022, and 2046, bump bitlength
+            if (newkey + 2).bit_length() == (newkey + 1).bit_length() + 1:
+                try:
+                    if self.codesource.bitlength < self.codesource.maxbits:
+                        doctest_debug(
+                            'increasing bitlength to %d at code %d',
+                            self.codesource.bitlength + 1, newkey)
+                        self.codesource.bitlength += 1
+                except AttributeError:
+                    logging.warning('Cannot change bitlength at code %d',
+                                    newkey)
 
 if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
                     os.getenv('PYTHON_DEBUGGING'):
