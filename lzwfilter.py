@@ -290,5 +290,7 @@ if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
         logging.debug(*args)
 
 if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
+    with open(sys.argv[1], 'rb') as instream, \
+            open(sys.argv[1] + '.dat', 'wb') as outstream:
+        outstream.write(LZWReader(instream).read())
+            
