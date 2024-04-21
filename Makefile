@@ -90,3 +90,18 @@ lzwfilter.decode.profile: lzwfilter.py card.lzw
 	 instream = open('card.lzw', 'rb'); \
 	 outstream = open('/tmp/card.rgb.tmp', 'wb'); \
 	 cProfile.run('outstream.write(lzwr(instream).read())')" | tee $@
+timetest:
+	# compare various ways of doing things
+	@echo using pop
+	python3 -m timeit --number 1000000 \
+	 "bitstream = bytearray(b'01' * 5); \
+	  i = int(bytes(bitstream.pop(0) for index in range(8)), 2); \
+	  print(i, repr(bitstream))" > /tmp/timeit.txt
+	tail -n 5 /tmp/timeit.txt
+	@echo using implied slice
+	python3 -m timeit --number 1000000 \
+	 "bitstream = bytearray(b'01' * 5); \
+	  i = int(bytes(bitstream[:8]), 2); \
+	  bitstream[:8] = []; \
+	  print(i, repr(bitstream))" >> /tmp/timeit.txt
+	tail -n 5 /tmp/timeit.txt
