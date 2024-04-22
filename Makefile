@@ -95,13 +95,13 @@ timetest:
 	@echo using pop
 	python3 -m timeit --number 1000000 \
 	 "bitstream = bytearray(b'01' * 5); \
-	  i = int(bytes(bitstream.pop(0) for index in range(8)), 2); \
-	  print(i, repr(bitstream))" > /tmp/timeit.txt
+	  i = int(bytes(bitstream.pop(0) for index in range(8)), 2)" \
+	 > /tmp/timeit.txt
 	tail -n 5 /tmp/timeit.txt
 	@echo using implied slice
 	python3 -m timeit --number 1000000 \
 	 "bitstream = bytearray(b'01' * 5); \
 	  i = int(bytes(bitstream[:8]), 2); \
-	  bitstream[:8] = []; \
-	  print(i, repr(bitstream))" >> /tmp/timeit.txt
+	  bitstream[:8] = []" \
+	 >> /tmp/timeit.txt
 	tail -n 5 /tmp/timeit.txt
