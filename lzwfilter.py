@@ -65,8 +65,9 @@ class CodeReader(io.BufferedReader):
                     b'0' * (self.bitlength - len(self.bitstream)))
             else:
                 self.bitstream.extend(format(ord(nextbyte), '08b').encode())
-        return int(bytes(self.bitstream.pop(0)
-                         for index in range(self.bitlength)), 2)
+        result = int(bytes(self.bitstream[:self.bitlength]), 2)
+        self.bitstream[:self.bitlength] = []
+        return result
 
     def read(self, count=None):
         '''
