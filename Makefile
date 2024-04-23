@@ -47,7 +47,7 @@ clean:
 distclean: clean
 	rm -f fixedcard.pdf *.rej *.check *.doctest *.pylint *.raw
 %.pylint: %.py
-	pylint $< | tee $@
+	pylint $< > $@ || (cat $@; false)
 %.doctest: %.py
 	python3 -m doctest $< 2>&1 | tee $@
 env:

@@ -282,6 +282,53 @@ class LZWReader(CodeReader):
                     logging.warning('Cannot change bitlength at code %d',
                                     newkey)
 
+class CodeWriter(io.BufferedWriter):
+    '''
+    Write out variable-bitlength codes as bytes
+
+
+    Example from p. 60 of TIFF6.pdf:
+
+    >>> stream = io.BytesIO()
+    >>> writer = CodeWriter(stream)
+    >>> writer.write([7, 258, 8, 8, 258, 6])
+    >>> stream.flush()
+    >>> stream.getvalue()
+    '''
+    def __init__(self, stream, buffer_size=BUFFER_SIZE,
+                 minbits=MINBITS, maxbits=MAXBITS):
+        super().__init__(stream, buffer_size)
+        self.bitlength = self.minbits = minbits
+        self.maxbits = maxbits
+        self.bitstream = 0
+        self.bits = 0  # number of bits queued in (int) buffer
+
+    def write(self, array):
+        '''
+        convert variable-length numbers to bytes and write to underlying stream
+        '''
+        for number in array:
+            self.bitstream <<= self.bitlength
+            self.bitstream |= number
+            self.bits += self.bitlength
+        if self.bits and self.bits % 8 == 0:
+            count = self.bits // 8
+            doctest_debug('CodeWriter writing %d bytes', count)
+            super().write(self.bitstream.to_bytes(count, 'big'))
+            self.bitstream = self.bits = 0
+
+    def flush(self):
+        '''
+        flush any unwritten codes
+        '''
+        doctest_debug('flushing CodeWriter')
+        over = self.bits % 8
+        if over:
+            count = 8 - over
+            self.bitstream <<= count
+            self.bits += count
+            self.write([])
+
 if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
                     os.getenv('PYTHON_DEBUGGING'):
     # pylint: disable=function-redefined
