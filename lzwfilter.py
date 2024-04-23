@@ -292,6 +292,7 @@ class CodeWriter(io.BufferedWriter):
     >>> stream = io.BytesIO()
     >>> writer = CodeWriter(stream)
     >>> writer.write([7, 258, 8, 8, 258, 6])
+    >>> stream.getvalue()
     >>> stream.flush()
     >>> stream.getvalue()
     '''
@@ -307,6 +308,7 @@ class CodeWriter(io.BufferedWriter):
         '''
         convert variable-length numbers to bytes and write to underlying stream
         '''
+        written = 0
         for number in array:
             self.bitstream <<= self.bitlength
             self.bitstream |= number
@@ -314,8 +316,9 @@ class CodeWriter(io.BufferedWriter):
         if self.bits and self.bits % 8 == 0:
             count = self.bits // 8
             doctest_debug('CodeWriter writing %d bytes', count)
-            super().write(self.bitstream.to_bytes(count, 'big'))
+            written += super().write(self.bitstream.to_bytes(count, 'big'))
             self.bitstream = self.bits = 0
+        return written
 
     def flush(self):
         '''
@@ -328,6 +331,7 @@ class CodeWriter(io.BufferedWriter):
             self.bitstream <<= count
             self.bits += count
             self.write([])
+        super().flush()
 
 if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
                     os.getenv('PYTHON_DEBUGGING'):
