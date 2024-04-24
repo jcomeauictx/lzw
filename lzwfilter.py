@@ -286,7 +286,6 @@ class CodeWriter(io.BufferedWriter):
     r'''
     Write out variable-bitlength codes as bytes
 
-
     Example from p. 60 of TIFF6.pdf:
 
     >>> stream = io.BytesIO()
@@ -339,6 +338,34 @@ class CodeWriter(io.BufferedWriter):
             written = self.write([])
             doctest_debug('%d bytes written to underlying stream', written)
         super().flush()
+
+class LZWWriter(io.BufferedWriter):
+    '''
+    Compress stream using LZW algorithm as documented in TIFF6.pdf
+    '''
+    # pylint: disable=too-many-instance-attributes
+    def __init__(self, stream,  # pylint: disable=too-many-arguments
+                 buffer_size=BUFFER_SIZE, minbits=MINBITS,
+                 maxbits=MAXBITS, special=True):
+        super().__init__(stream, buffer_size)
+        self.bitlength = self.minbits = minbits
+        self.maxbits = maxbits
+        self.codesink = CodeWriter(stream, buffer_size, minbits, maxbits)
+        self.special = special  # False for rosettacode.org examples
+        self.codedict = {}
+        self.oldcode = None
+        self.buffer = bytearray()
+        self.initialize_table()
+
+    def initialize_table(self):
+        '''
+        (Re-)Initialize code table
+        '''
+        self.codedict.clear()
+        self.codedict.update(STRINGTABLE)
+        if self.special:
+            self.codedict.update(SPECIAL)
+        self.codesink.bitlength = self.codesink.minbits
 
 if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
                     os.getenv('PYTHON_DEBUGGING'):
