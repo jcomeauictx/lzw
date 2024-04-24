@@ -291,10 +291,14 @@ class CodeWriter(io.BufferedWriter):
 
     >>> stream = io.BytesIO()
     >>> writer = CodeWriter(stream)
+    >>> # the following bytes won't actually write out to underlying stream now,
+    >>> # since at 9 bits per, they won't align to a byte boundary.
     >>> writer.write([7, 258, 8, 8, 258, 6])
+    0
+    >>> # now when we flush it, they should be written.
+    >>> writer.flush()
     >>> stream.getvalue()
-    >>> stream.flush()
-    >>> stream.getvalue()
+    b'\x03\xc0\x81\x00\x88\x10\x18'
     '''
     def __init__(self, stream, buffer_size=BUFFER_SIZE,
                  minbits=MINBITS, maxbits=MAXBITS):
@@ -332,7 +336,8 @@ class CodeWriter(io.BufferedWriter):
             doctest_debug('shifting self.bitstream %d bits', shift)
             self.bitstream <<= shift
             self.bits += shift
-            self.write([])
+            written = self.write([])
+            doctest_debug('%d bytes written to underlying stream', written)
         super().flush()
 
 if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
