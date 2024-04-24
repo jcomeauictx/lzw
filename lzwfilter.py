@@ -329,6 +329,7 @@ class CodeWriter(io.BufferedWriter):
         over = self.bits % 8
         if over:
             shift = 8 - over
+            doctest_debug('shifting self.bitstream %d bits', shift)
             self.bitstream <<= shift
             self.bits += shift
             self.write([])
