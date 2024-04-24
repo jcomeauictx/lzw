@@ -346,6 +346,7 @@ class CodeWriter(io.BufferedWriter):
             written = self.write([])
             doctest_debug('%d bytes written to underlying stream', written)
         super().flush()
+        doctest_debug('ending CodeWriter.flush()')
 
 class LZWWriter(io.BufferedWriter):
     r'''
@@ -426,6 +427,7 @@ class LZWWriter(io.BufferedWriter):
         self.codesink.write([self.codedict[self.prefix]])
         self.codesink.flush()
         self.prefix = b''
+        doctest_debug('ending LZWWriter.flush()')
 
     def add_string(self, bytestring):
         '''
