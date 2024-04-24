@@ -4,10 +4,11 @@ Lempel-Ziv-Welch compression and decompression
 
 A different approach, hopefully cleaner and faster than lzw.py
 '''
-import sys, os, io, logging  # pylint: disable=multiple-imports
+import sys, os, struct, io, logging  # pylint: disable=multiple-imports
 
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
 
+# pylint: disable=consider-using-f-string  # "we don't do that here"
 BUFFER_SIZE = 8192  # see "8K" on p. 56 of TIFF6.pdf
 # min and max bit lengths recommended on p. 60 of TIFF6.pdf
 MINBITS = 9
@@ -15,6 +16,7 @@ MAXBITS = 12
 # encoding and decoding tables, make shallow copies of these for use
 STRINGTABLE = {n: bytes([n]) for n in range(256)}  # codes to strings
 CODETABLE = dict(map(reversed, STRINGTABLE.items()))  # strings to codes
+CODEMAP = {n: n for n in range(256)}  # codes to codes
 CLEAR_CODE = 256  # see TIFF6.pdf pp. 58-63 for use of special codes
 END_OF_INFO_CODE = 257
 SPECIAL = {CLEAR_CODE: None, END_OF_INFO_CODE: None}
@@ -369,6 +371,13 @@ class LZWWriter(io.BufferedWriter):
         } /* end of for loop */
         WriteCode (CodeFromString(Omega));
         WriteCode (EndOfInformation);
+
+    >>> stream = io.BytesIO()
+    >>> strip = b'\x07\x07\x07\x08\x08\x07\x07\x06\x06'
+    >>> writer = LZWWriter(stream)
+    >>> writer.write(strip)
+    >>> writer.flush()
+    >>> stream.getvalue()
     '''
     # pylint: disable=too-many-instance-attributes
     def __init__(self, stream,  # pylint: disable=too-many-arguments
@@ -383,6 +392,8 @@ class LZWWriter(io.BufferedWriter):
         self.codedict = {}
         self.oldcode = None
         self.buffer = bytearray()
+        self.prefix = b''
+        self.offset = 2 * special  # reserve room for special codes
         self.initialize_table()
 
     def initialize_table(self):
@@ -393,6 +404,36 @@ class LZWWriter(io.BufferedWriter):
         self.codedict.update(CODETABLE)
         self.codesink.bitlength = self.codesink.minbits
 
+    def write(self, strip):
+        '''
+        Encode strip of image, and send codes downstream
+        '''
+        for byte in struct.unpack('{:d}c'.format(len(strip)), strip):
+            chunk = self.prefix + byte
+            if chunk in self.codedict:
+                self.prefix = chunk
+            else:
+                self.codesink.write([self.codedict[chunk]])
+                self.add_string(chunk)
+                self.prefix = byte
+
+    def flush(self):
+        '''
+        Write out remaining prefix and flush downstream
+        '''
+        self.codesink.write([self.codedict[self.prefix]])
+        self.codesink.flush()
+        self.prefix = b''
+
+    def add_string(self, bytestring):
+        '''
+        AddStringToTable from pseudocode
+
+        Generate a new code number from bytestring and add it to the table
+        '''
+        newcode = len(self.codedict) + self.offset
+        self.codedict[bytestring] = newcode
+
 if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
                     os.getenv('PYTHON_DEBUGGING'):
     # pylint: disable=function-redefined
@@ -402,7 +443,59 @@ if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
         '''
         logging.debug(*args)
 
+def dispatch(allowed, args, minargs, binary=True):
+    '''
+    simple dispatcher for scripts whose first arg is an action
+
+    2nd and 3rd args are for input and output filenames,
+    with '-' serving as stdin and stdout, respectively.
+
+    `binary` indicates the files should be opened as byte streams
+
+    we leave it to the dispatched routine to interpret None as
+    sys.stdin, sys.stdout, sys.stdin.buffer, etc., as appropriate.
+    '''
+    # pylint: disable=consider-using-with
+    argcount = len(args)
+    args += [None] * (minargs - (argcount - 1))
+    binary = 'b' if binary else ''
+    if args[1] not in allowed + ('print',):  # allow `print` for testing
+        logging.warning('usage: %s %s file.dat -', args[0], allowed[0])
+        raise ValueError('Action %s must be in %s' % (args[1], list(allowed)))
+    if args[2] and args[2] != '-':
+        args[2] = open(args[2], 'r' + binary)
+    else:
+        args[2] = None
+    if args[3] and args[3] != '-':
+        args[3] = open(args[3], 'w' + binary)
+    else:
+        args[3] = None
+    eval(args[1])(*args[2:argcount])  # pylint: disable=eval-used
+
+def encode(args):
+    '''
+    Encode raw image data as LZW
+    '''
+    encoder = LZWWriter(args[1] or sys.stdout.buffer)
+    source = args[0] or sys.stdin.buffer
+    encoder.write(source.read())
+
+def decode(args):
+    '''
+    Decode LZW-compressed data into raw image
+    '''
+    decoder = LZWReader(args[0] or sys.stdin.buffer)
+    sink = args[1] or sys.stdout.buffer
+    sink.write(decoder.read())
+
+if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
+                    os.getenv('PYTHON_DEBUGGING'):
+    # pylint: disable=function-redefined
+    def doctest_debug(*args):
+        '''
+        use logging.debug only during doctest
+        '''
+        logging.debug(*args)
 if __name__ == '__main__':
-    with open(sys.argv[1], 'rb') as instream, \
-            open(sys.argv[1] + '.dat', 'wb') as outstream:
-        outstream.write(LZWReader(instream).read())
+    dispatch(('encode', 'decode'), sys.argv, 3)
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
