@@ -289,23 +289,27 @@ class CodeWriter(io.BufferedWriter):
     Example from p. 60 of TIFF6.pdf:
 
     >>> stream = io.BytesIO()
-    >>> writer = CodeWriter(stream)
+    >>> writer = CodeWriter(stream, special=False)
     >>> # the following bytes won't actually write out to underlying stream now,
     >>> # since at 9 bits per, they won't align to a byte boundary.
     >>> writer.write([7, 258, 8, 8, 258, 6])
     0
-    >>> # now when we flush it, they should be written.
-    >>> writer.flush()
+    >>> writer.flush() # now when we flush it, they should be written.
     >>> stream.getvalue()
     b'\x03\xc0\x81\x00\x88\x10\x18'
     '''
-    def __init__(self, stream, buffer_size=BUFFER_SIZE,
-                 minbits=MINBITS, maxbits=MAXBITS):
+    def __init__(self, stream,  # pylint: disable=too-many-arguments
+                 buffer_size=BUFFER_SIZE,
+                 minbits=MINBITS, maxbits=MAXBITS,
+                 special=True):
         super().__init__(stream, buffer_size)
         self.bitlength = self.minbits = minbits
         self.maxbits = maxbits
+        self.special = special
         self.bitstream = 0
         self.bits = 0  # number of bits queued in (int) buffer
+        if special:
+            self.write([CLEAR_CODE])
 
     def write(self, array):
         '''
@@ -329,6 +333,8 @@ class CodeWriter(io.BufferedWriter):
         flush any unwritten codes
         '''
         doctest_debug('flushing CodeWriter')
+        if self.special:
+            self.write([END_OF_INFO_CODE])
         over = self.bits % 8
         if over:
             shift = 8 - over
@@ -371,7 +377,8 @@ class LZWWriter(io.BufferedWriter):
         super().__init__(stream, buffer_size)
         self.bitlength = self.minbits = minbits
         self.maxbits = maxbits
-        self.codesink = CodeWriter(stream, buffer_size, minbits, maxbits)
+        self.codesink = CodeWriter(stream, buffer_size,
+                                   minbits, maxbits, special)
         self.special = special  # False for rosettacode.org examples
         self.codedict = {}
         self.oldcode = None
