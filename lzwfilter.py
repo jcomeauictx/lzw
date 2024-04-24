@@ -315,8 +315,9 @@ class CodeWriter(io.BufferedWriter):
             self.bits += self.bitlength
         if self.bits and self.bits % 8 == 0:
             count = self.bits // 8
-            doctest_debug('CodeWriter writing %d bytes', count)
-            written += super().write(self.bitstream.to_bytes(count, 'big'))
+            bytestring = self.bitstream.to_bytes(count, 'big')
+            doctest_debug('CodeWriter writing %d bytes: %s', count, bytestring)
+            written += super().write(bytestring)
             self.bitstream = self.bits = 0
         return written
 
