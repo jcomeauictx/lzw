@@ -283,7 +283,7 @@ class LZWReader(CodeReader):
                                     newkey)
 
 class CodeWriter(io.BufferedWriter):
-    '''
+    r'''
     Write out variable-bitlength codes as bytes
 
 
@@ -327,9 +327,9 @@ class CodeWriter(io.BufferedWriter):
         doctest_debug('flushing CodeWriter')
         over = self.bits % 8
         if over:
-            count = 8 - over
-            self.bitstream <<= count
-            self.bits += count
+            shift = 8 - over
+            self.bitstream <<= shift
+            self.bits += shift
             self.write([])
         super().flush()
 
