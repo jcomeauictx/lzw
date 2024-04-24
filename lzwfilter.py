@@ -330,12 +330,12 @@ class CodeWriter(io.BufferedWriter):
             self.bitstream = self.bits = 0
         return written
 
-    def flush(self):
+    def flush(self, final=True):
         '''
         flush any unwritten codes
         '''
         doctest_debug('flushing CodeWriter')
-        if self.special:
+        if self.special and final:
             self.write([END_OF_INFO_CODE])
         over = self.bits % 8
         if over:
@@ -423,11 +423,14 @@ class LZWWriter(io.BufferedWriter):
         '''
         Write out remaining prefix and flush downstream
         '''
-        doctest_debug('flushing LZWWriter, prefix=%s', self.prefix)
-        self.codesink.write([self.codedict[self.prefix]])
-        self.codesink.flush()
-        self.prefix = b''
-        doctest_debug('ending LZWWriter.flush()')
+        if self.prefix:
+            doctest_debug('flushing LZWWriter, prefix=%s', self.prefix)
+            self.codesink.write([self.codedict[self.prefix]])
+            self.codesink.flush()
+            self.prefix = b''
+            doctest_debug('ending LZWWriter.flush()')
+        else:
+            doctest_debug('ignoring LZWWriter.flush() with no prefix')
 
     def add_string(self, bytestring):
         '''
