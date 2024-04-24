@@ -342,6 +342,27 @@ class CodeWriter(io.BufferedWriter):
 class LZWWriter(io.BufferedWriter):
     '''
     Compress stream using LZW algorithm as documented in TIFF6.pdf
+
+    Pseudocode from p. 58 of TIFF6.pdf follows. Find a copy that has
+    the Greek Omega character in it for the prefix variable; it's
+    missing in most of the copies out there. I'm showing it as Omega
+    below.
+
+        InitializeStringTable();
+        WriteCode(ClearCode);
+        Omega = the empty string;
+        for each character in the strip {
+            K = GetNextCharacter();
+            if Omega+K is in the string table {
+                Omega = Omega+K; /* string concatenation */
+            } else {
+                WriteCode (CodeFromString(Omega);
+                AddTableEntry(Omega+K);
+                Omega = K;
+            }
+        } /* end of for loop */
+        WriteCode (CodeFromString(Omega));
+        WriteCode (EndOfInformation);
     '''
     # pylint: disable=too-many-instance-attributes
     def __init__(self, stream,  # pylint: disable=too-many-arguments
@@ -362,9 +383,7 @@ class LZWWriter(io.BufferedWriter):
         (Re-)Initialize code table
         '''
         self.codedict.clear()
-        self.codedict.update(STRINGTABLE)
-        if self.special:
-            self.codedict.update(SPECIAL)
+        self.codedict.update(CODETABLE)
         self.codesink.bitlength = self.codesink.minbits
 
 if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
