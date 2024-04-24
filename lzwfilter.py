@@ -84,7 +84,7 @@ class CodeReader(io.BufferedReader):
                 break
         return result
 
-class LZWReader(CodeReader):
+class LZWReader(io.BufferedReader):
     r'''
     Implementation of LZW decompressor
 
@@ -190,7 +190,7 @@ class LZWReader(CodeReader):
                  buffer_size=BUFFER_SIZE, minbits=MINBITS,
                  maxbits=MAXBITS, special=True):
         try:
-            super().__init__(stream, buffer_size, minbits, maxbits)
+            super().__init__(stream, buffer_size)
             doctest_debug('Using CodeReader(%s) iterator', stream)
             self.codesource = CodeReader(stream, buffer_size, minbits, maxbits)
         except AttributeError:
