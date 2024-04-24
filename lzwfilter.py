@@ -348,7 +348,7 @@ class CodeWriter(io.BufferedWriter):
         super().flush()
 
 class LZWWriter(io.BufferedWriter):
-    '''
+    r'''
     Compress stream using LZW algorithm as documented in TIFF6.pdf
 
     Pseudocode from p. 58 of TIFF6.pdf follows. Find a copy that has
@@ -378,6 +378,7 @@ class LZWWriter(io.BufferedWriter):
     >>> writer.write(strip)
     >>> writer.flush()
     >>> stream.getvalue()
+    b'\x80\x01\xe0@\x80D\x08\x0c\x06\x80\x80'
     '''
     # pylint: disable=too-many-instance-attributes
     def __init__(self, stream,  # pylint: disable=too-many-arguments
@@ -413,7 +414,7 @@ class LZWWriter(io.BufferedWriter):
             if chunk in self.codedict:
                 self.prefix = chunk
             else:
-                self.codesink.write([self.codedict[chunk]])
+                self.codesink.write([self.codedict[self.prefix]])
                 self.add_string(chunk)
                 self.prefix = byte
 
@@ -421,6 +422,7 @@ class LZWWriter(io.BufferedWriter):
         '''
         Write out remaining prefix and flush downstream
         '''
+        doctest_debug('flushing LZWWriter, prefix=%s', self.prefix)
         self.codesink.write([self.codedict[self.prefix]])
         self.codesink.flush()
         self.prefix = b''
