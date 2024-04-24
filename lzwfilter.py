@@ -256,7 +256,7 @@ class LZWReader(io.BufferedReader):
         while len(self.buffer) < count:
             try:
                 chunk = next(self)
-                doctest_debug('next chunk: %s', chunk)
+                doctest_debug('next chunk: ...%s', chunk[-10:])
                 self.buffer.extend(chunk)
             except StopIteration:
                 break
@@ -325,7 +325,8 @@ class CodeWriter(io.BufferedWriter):
         if self.bits and self.bits % 8 == 0:
             count = self.bits // 8
             bytestring = self.bitstream.to_bytes(count, 'big')
-            doctest_debug('CodeWriter writing %d bytes: %s', count, bytestring)
+            doctest_debug('CodeWriter writing %d bytes: ...%s', count,
+                          bytestring[-10:])
             written += super().write(bytestring)
             self.bitstream = self.bits = 0
         return written
@@ -424,7 +425,8 @@ class LZWWriter(io.BufferedWriter):
         Write out remaining prefix and flush downstream
         '''
         if self.prefix:
-            doctest_debug('flushing LZWWriter, prefix=%s', self.prefix)
+            doctest_debug('flushing LZWWriter, prefix ending in %s',
+                          self.prefix[-10:])
             self.codesink.write([self.codedict[self.prefix]])
             self.codesink.flush()
             self.prefix = b''
