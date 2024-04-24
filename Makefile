@@ -1,4 +1,5 @@
 SHELL := /bin/bash  # we're using Bashisms
+PYLINT ?= $(shell which pylint3 pylint 2>/dev/null | head -n 1)
 BYTECOUNT ?= 1000
 ASCII85 := $(shell PATH=$(PATH):. \
 	     which ascii85 ascii85.py 2>/dev/null | head -n 1)
@@ -47,7 +48,7 @@ clean:
 distclean: clean
 	rm -f fixedcard.pdf *.rej *.check *.doctest *.pylint *.raw
 %.pylint: %.py
-	pylint $< > $@ || (cat $@; false)
+	$(PYLINT) $< > $@ || (cat $@; false)
 %.doctest: %.py
 	python3 -m doctest $< 2>&1 | tee $@
 env:
