@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -OO
+#!/usr/bin/python3
 '''
 Lempel-Ziv-Welch compression and decompression
 
@@ -351,6 +351,8 @@ class CodeWriter(io.BufferedWriter):
             self.codes_written += 1
             if self.codes_written in self.limits:
                 if self.bitlength < self.maxbits:
+                    logging.debug('raising bitlength to %d at %d codes',
+                                  self.bitlength + 1, self.codes_written)
                     self.bitlength += 1
                 else:
                     raise CodeTableFull()
