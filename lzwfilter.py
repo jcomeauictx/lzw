@@ -361,10 +361,10 @@ class CodeWriter(io.BufferedWriter):
             try:
                 bytestring = self.bitstream.to_bytes(count, 'big')
             except OverflowError:
-                logging.error('bitstream 0x%x will not fit into %d bytes',
-                              self.bitstream, count)
+                logging.error('bitstream 0x%x does not fit into %d bits',
+                              self.bitstream, self.bits)
                 raise
-            doctest_debug('CodeWriter writing %d bytes: ...%s', count,
+            logging.debug('CodeWriter writing %d bytes: ...%s', count,
                           bytestring[-10:])
             written += super().write(bytestring)
             self.bitstream = self.bits = 0
