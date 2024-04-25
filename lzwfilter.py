@@ -332,7 +332,7 @@ class CodeWriter(io.BufferedWriter):
         self.special = special
         self.bitstream = 0
         self.bits = 0  # number of bits queued in (int) buffer
-        self.codes_written = len(CODETABLE) + (2 * special)
+        self.codes_written = len(CODETABLE)
         if special:
             self.write([CLEAR_CODE])
 
@@ -537,7 +537,10 @@ def encode(source=None, sink=None):
     doctest_debug('encoding %s to %s', source, sink)
     sink = LZWWriter(sink or sys.stdout.buffer)
     source = source or sys.stdin.buffer
-    sink.write(source.read())
+    try:
+        sink.write(source.read())
+    finally:
+        sink.close()
 
 def decode(source=None, sink=None):
     '''
@@ -545,7 +548,10 @@ def decode(source=None, sink=None):
     '''
     source = LZWReader(source or sys.stdin.buffer)
     sink = sink or sys.stdout.buffer
-    sink.write(source.read())
+    try:
+        sink.write(source.read())
+    finally:
+        sink.close()
 
 if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
                     os.getenv('PYTHON_DEBUGGING'):
