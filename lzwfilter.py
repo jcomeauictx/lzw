@@ -345,13 +345,15 @@ class CodeWriter(io.BufferedWriter):
         written = 0
         while array:
             number = array.pop(0)
+            doctest_debug('CodeWriter writing code 0b%s',
+                          bin(number)[2:].zfill(self.bitlength))
             self.bitstream <<= self.bitlength
             self.bitstream |= number
             self.bits += self.bitlength
             self.codes_written += 1
             if self.codes_written in self.limits:
                 if self.bitlength < self.maxbits:
-                    logging.debug('raising bitlength to %d at %d codes',
+                    doctest_debug('raising bitlength to %d at %d codes',
                                   self.bitlength + 1, self.codes_written)
                     self.bitlength += 1
                 else:
@@ -364,7 +366,7 @@ class CodeWriter(io.BufferedWriter):
                 logging.error('bitstream 0x%x does not fit into %d bits',
                               self.bitstream, self.bits)
                 raise
-            logging.debug('CodeWriter writing %d bytes: ...%s', count,
+            doctest_debug('CodeWriter writing %d bytes: ...%s', count,
                           bytestring[-10:])
             written += super().write(bytestring)
             self.bitstream = self.bits = 0
