@@ -284,7 +284,13 @@ class LZWReader(io.BufferedReader):
                     logging.warning('Cannot change bitlength at code %d',
                                     newkey)
 
+class CodeTableFull(RuntimeError):
+    '''
+    Error code for full code table
+    '''
+
 class CodeWriter(io.BufferedWriter):
+    # pylint: disable=too-many-instance-attributes
     r'''
     Write out variable-bitlength codes as bytes
 
@@ -304,24 +310,50 @@ class CodeWriter(io.BufferedWriter):
                  buffer_size=BUFFER_SIZE,
                  minbits=MINBITS, maxbits=MAXBITS,
                  special=True):
+        '''
+        Initialize the code writer, which converts variable length code
+        numbers to bytes.
+
+        `codes_written` is a proxy for how many entries are in the table
+        on the *decoding* end, since in the case of the final prefix
+        written at the end of a strip, no table entry is made, thus
+        if it happens to be the 510th byte written, the decoder will
+        increment bitlength and very likely get an out-of-range code on
+        the next fetch.
+
+        We start with `codes_written` set to 256, since that is the table
+        size on initialization.
+        '''
         super().__init__(stream, buffer_size)
         self.bitlength = self.minbits = minbits
         self.maxbits = maxbits
+        self.limits = ((1 << n) - 2 for n in range(minbits, maxbits + 1))
         self.special = special
         self.bitstream = 0
         self.bits = 0  # number of bits queued in (int) buffer
+        self.codes_written = len(CODETABLE)
         if special:
             self.write([CLEAR_CODE])
 
     def write(self, array):
         '''
         convert variable-length numbers to bytes and write to underlying stream
+
+        NOTE: probably not a good idea to pass arrays with length > 1
+        except for testing purposes. `list.pop` is slow.
         '''
         written = 0
-        for number in array:
+        while array:
+            number = array.pop(0)
             self.bitstream <<= self.bitlength
             self.bitstream |= number
             self.bits += self.bitlength
+            self.codes_written += 1
+            if self.codes_written in self.limits:
+                if self.bitlength < self.maxbits:
+                    self.bitlength += 1
+                else:
+                    raise CodeTableFull()
         if self.bits and self.bits % 8 == 0:
             count = self.bits // 8
             bytestring = self.bitstream.to_bytes(count, 'big')
@@ -416,8 +448,12 @@ class LZWWriter(io.BufferedWriter):
             if chunk in self.codedict:
                 self.prefix = chunk
             else:
-                self.codesink.write([self.codedict[self.prefix]])
-                self.add_string(chunk)
+                try:
+                    self.codesink.write([self.codedict[self.prefix]])
+                    self.add_string(chunk)
+                except CodeTableFull:
+                    self.codesink.write([CLEAR_CODE])
+                    self.initialize_table()
                 self.prefix = byte
 
     def flush(self):
