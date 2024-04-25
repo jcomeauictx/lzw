@@ -327,11 +327,12 @@ class CodeWriter(io.BufferedWriter):
         super().__init__(stream, buffer_size)
         self.bitlength = self.minbits = minbits
         self.maxbits = maxbits
-        self.limits = ((1 << n) - 2 for n in range(minbits, maxbits + 1))
+        self.limits = tuple((1 << n) - 2 for n in range(minbits, maxbits + 1))
+        doctest_debug('CodeWriter.limits: %s', repr(self.limits))
         self.special = special
         self.bitstream = 0
         self.bits = 0  # number of bits queued in (int) buffer
-        self.codes_written = len(CODETABLE)
+        self.codes_written = len(CODETABLE) + (2 * special)
         if special:
             self.write([CLEAR_CODE])
 
@@ -345,7 +346,8 @@ class CodeWriter(io.BufferedWriter):
         written = 0
         while array:
             number = array.pop(0)
-            doctest_debug('CodeWriter writing code 0b%s',
+            doctest_debug('CodeWriter writing %d bit code #%d: 0b%s',
+                          self.bitlength, self.codes_written,
                           bin(number)[2:].zfill(self.bitlength))
             self.bitstream <<= self.bitlength
             self.bitstream |= number
@@ -447,6 +449,7 @@ class LZWWriter(io.BufferedWriter):
         self.codedict.clear()
         self.codedict.update(CODETABLE)
         self.codesink.bitlength = self.codesink.minbits
+        self.codesink.bytes_written = len(self.codedict) + self.offset
 
     def write(self, strip):
         '''
@@ -487,6 +490,7 @@ class LZWWriter(io.BufferedWriter):
         '''
         newcode = len(self.codedict) + self.offset
         self.codedict[bytestring] = newcode
+        doctest_debug('added code %d to table', newcode)
 
 if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
                     os.getenv('PYTHON_DEBUGGING'):
