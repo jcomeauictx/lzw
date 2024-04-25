@@ -356,7 +356,12 @@ class CodeWriter(io.BufferedWriter):
                     raise CodeTableFull()
         if self.bits and self.bits % 8 == 0:
             count = self.bits // 8
-            bytestring = self.bitstream.to_bytes(count, 'big')
+            try:
+                bytestring = self.bitstream.to_bytes(count, 'big')
+            except OverflowError:
+                logging.error('bitstream 0x%x will not fit into %d bytes',
+                              self.bitstream, count)
+                raise
             doctest_debug('CodeWriter writing %d bytes: ...%s', count,
                           bytestring[-10:])
             written += super().write(bytestring)
