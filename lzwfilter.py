@@ -517,21 +517,22 @@ def dispatch(allowed, args, minargs, binary=True):
         args[3] = None
     eval(args[1])(*args[2:argcount])  # pylint: disable=eval-used
 
-def encode(encoder=None, source=None):
+def encode(source=None, sink=None):
     '''
     Encode raw image data as LZW
     '''
-    encoder = LZWWriter(encoder or sys.stdout.buffer)
+    doctest_debug('encoding %s to %s', source, sink)
+    sink = LZWWriter(sink or sys.stdout.buffer)
     source = source or sys.stdin.buffer
-    encoder.write(source.read())
+    sink.write(source.read())
 
-def decode(decoder=None, sink=None):
+def decode(source=None, sink=None):
     '''
     Decode LZW-compressed data into raw image
     '''
-    decoder = LZWReader(decoder or sys.stdin.buffer)
+    source = LZWReader(source or sys.stdin.buffer)
     sink = sink or sys.stdout.buffer
-    sink.write(decoder.read())
+    sink.write(source.read())
 
 if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
                     os.getenv('PYTHON_DEBUGGING'):
