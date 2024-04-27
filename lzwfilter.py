@@ -449,7 +449,7 @@ class LZWWriter(io.BufferedWriter):
         self.codedict.clear()
         self.codedict.update(CODETABLE)
         self.codesink.bitlength = self.codesink.minbits
-        self.codesink.bytes_written = len(self.codedict) + self.offset
+        self.codesink.codes_written = len(self.codedict)
 
     def write(self, strip):
         '''
@@ -464,6 +464,8 @@ class LZWWriter(io.BufferedWriter):
                     self.codesink.write([self.codedict[self.prefix]])
                     self.add_string(chunk)
                 except CodeTableFull:
+                    # note that the exception is thrown *after* the code
+                    # is written, so we don't need to re-send it.
                     self.codesink.write([CLEAR_CODE])
                     self.initialize_table()
                 self.prefix = byte
