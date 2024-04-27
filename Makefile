@@ -91,6 +91,12 @@ lzwfilter.decode.profile: lzwfilter.py card.lzw
 	 instream = open('card.lzw', 'rb'); \
 	 outstream = open('/tmp/card.rgb.tmp', 'wb'); \
 	 cProfile.run('outstream.write(lzwr(instream).read())')" | tee $@
+lzwfilter.encode.profile: lzwfilter.py card.lzw
+	python3 -c "import cProfile; \
+	 from lzwfilter import LZWWriter as lzww; \
+	 instream = open('card.rgb', 'rb'); \
+	 outstream = open('/tmp/card.lzw.tmp', 'wb'); \
+	 cProfile.run('lzww(outstream).write(instream.read())')" | tee $@
 timetest:
 	# compare various ways of doing things
 	@echo using pop
