@@ -544,6 +544,27 @@ def encode(source=None, sink=None):
     finally:
         sink.close()
 
+def encode_strips(source=None, sink=None):
+    '''
+    Encode raw image data as 8K strips, as per TIFF6.pdf
+
+    Only for proof of concept. Postscript/PDF images don't do this.
+    '''
+    doctest_debug('encoding %s to %s in strips', source, sink)
+    sink = sink or sys.stdout.buffer
+    source = source or sys.stdin.buffer
+    for strip in source.read(BUFFER_SIZE):
+        try:
+            doctest_debug('strip: ends with %s', strip[-10:])
+        except TypeError:
+            doctest_debug('strip: %s', strip)
+            raise
+        writer = LZWWriter(sink)
+        try:
+            writer.write(io.BytesIO(strip))
+        finally:
+            writer.close()
+
 def decode(source=None, sink=None):
     '''
     Decode LZW-compressed data into raw image
@@ -564,5 +585,5 @@ if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
         '''
         logging.debug(*args)
 if __name__ == '__main__':
-    dispatch(('encode', 'decode'), sys.argv, 3)
+    dispatch(('encode', 'decode', 'encode_strips'), sys.argv, 3)
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
