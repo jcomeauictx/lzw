@@ -494,6 +494,17 @@ class LZWWriter(io.BufferedWriter):
         self.codedict[bytestring] = newcode
         doctest_debug('added code %d to table', newcode)
 
+class LZWStripWriter(LZWWriter):
+    '''
+    LZWWriter that doesn't close underlying stream
+
+    This allows us to store multiple 8K streams in the same output file.
+    This has no real-world use case outside of faxes that I know of, but
+    am including it for completeness with the TIFF6.pdf spec.
+    '''
+    def close(self):
+        self.codesink.close()
+
 if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
                     os.getenv('PYTHON_DEBUGGING'):
     # pylint: disable=function-redefined
@@ -553,15 +564,14 @@ def encode_strips(source=None, sink=None):
     doctest_debug('encoding %s to %s in strips', source, sink)
     sink = sink or sys.stdout.buffer
     source = source or sys.stdin.buffer
-    for strip in source.read(BUFFER_SIZE):
+    while True:
+        strip = source.read(BUFFER_SIZE)
+        if not strip:
+            break
+        doctest_debug('strip: ends with %s', strip[-10:])
+        writer = LZWStripWriter(sink)
         try:
-            doctest_debug('strip: ends with %s', strip[-10:])
-        except TypeError:
-            doctest_debug('strip: %s', strip)
-            raise
-        writer = LZWWriter(sink)
-        try:
-            writer.write(io.BytesIO(strip))
+            writer.write(strip)
         finally:
             writer.close()
 
