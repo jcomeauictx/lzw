@@ -571,11 +571,14 @@ def encode_strips(source=None, sink=None):
         if not strip:
             break
         doctest_debug('strip: ends with %s', strip[-10:])
-        writer = LZWStripWriter(sink)
-        try:
-            writer.write(strip)
-        finally:
-            writer.close()
+        with io.BytesIO(strip) as instream, \
+               io.BytesIO() as outstream:
+            writer = LZWWriter(outstream)
+            try:
+                writer.write(strip)
+            finally:
+                writer.flush()
+            sink.write(outstream.getvalue())
 
 def decode(source=None, sink=None):
     '''
