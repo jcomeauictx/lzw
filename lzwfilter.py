@@ -333,6 +333,7 @@ class CodeWriter(io.BufferedWriter):
         self.bitstream = 0
         self.bits = 0  # number of bits queued in (int) buffer
         self.codes_written = len(CODETABLE)
+        self.done = False  # set True after final flush
         if special:
             self.write([CLEAR_CODE])
 
@@ -379,7 +380,8 @@ class CodeWriter(io.BufferedWriter):
         flush any unwritten codes
         '''
         doctest_debug('flushing CodeWriter')
-        if self.special and final:
+        if self.special and final and not self.done:
+            self.done = True
             self.write([END_OF_INFO_CODE])
         over = self.bits % 8
         if over:
@@ -503,7 +505,7 @@ class LZWStripWriter(LZWWriter):
     am including it for completeness with the TIFF6.pdf spec.
     '''
     def close(self):
-        self.codesink.close()
+        self.codesink.flush(final=True)
 
 if os.path.splitext(os.path.basename(sys.argv[0]))[0] == 'doctest' or \
                     os.getenv('PYTHON_DEBUGGING'):
