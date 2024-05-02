@@ -1,7 +1,7 @@
 #!/usr/src/jcomeauictx/casperscript/bin/bccs
-/infile sys.argc 1 gt {sys.argv 1 get} {(/dev/stdin)} ifelse def
-/outfile sys.argc 2 gt {sys.argv 2 get} {(/dev/stdout)} ifelse def
-/action sys.argc 3 gt {sys.argv 3 get} {(decode)} ifelse def
+/action sys.argc 1 gt {sys.argv 1 get} {(decode)} ifelse def
+/infile sys.argc 2 gt {sys.argv 2 get} {(/dev/stdin)} ifelse def
+/outfile sys.argc 3 gt {sys.argv 3 get} {(/dev/stdout)} ifelse def
 action (decode) eq {
   infile (r) file
   dup bytesavailable [0] astore

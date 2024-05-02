@@ -112,3 +112,7 @@ timetest:
 	  bitstream[:8] = []" \
 	 >> /tmp/timeit.txt
 	tail -n 5 /tmp/timeit.txt
+lzwdecode.compare: card.lzw lzw.py lzwfilter.py lzw.cs
+	for program in $(filter-out $<, $+); do \
+	 time ./$$program decode $< /tmp/$<.$$program.rgb; \
+	done
