@@ -17,4 +17,17 @@ action (decode) eq {
       {(%stderr) (w) file exch writestring} {pop} ifelse}
     {pop}
     ifelse
-} if
+}
+{  % encode
+  /input infile (r) file def
+  /output outfile (w) file def
+  /compressed output /LZWEncode filter def
+  /stringbuffer 1024 string def
+  {input stringbuffer readstring 1 index length 0 gt or
+    {compressed exch writestring} {compressed flushfile exit} ifelse} loop
+  [ outfile status ] 1 get dup 0 gt
+    {[0] astore 128 string (bytes written: %d\n) 3 -1 roll sprintf
+      {(%stderr) (w) file exch writestring} {pop} ifelse}
+    {pop}
+    ifelse
+} ifelse
