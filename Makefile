@@ -5,6 +5,7 @@ ASCII85 := $(shell PATH=$(PATH):. \
 	     which ascii85 ascii85.py 2>/dev/null | head -n 1)
 PYTHON_DEBUGGING ?=
 EOI_IS_EOD ?= 1
+PROGRAM ?= lzwfilter.py
 ifeq ($(EOI_IS_EOD),)
   IGNORE_EOI := .ignoreeoi
 endif
@@ -13,7 +14,7 @@ ifneq ($(SHOW_ENV),)
 else
   export PYTHON_DEBUGGING EOI_IS_EOD
 endif
-all: lzwfilter.pylint lzwfilter.doctest
+all: $(PROGRAM:.py=.pylint) $(PROGRAM:.py=.doctest)
 %.gs: %.pdf /usr/bin/pdf2ps
 	pdf2ps $< $@
 %.ps: %.pdf /usr/bin/pdftops
@@ -27,8 +28,8 @@ all: lzwfilter.pylint lzwfilter.doctest
 	sed '1,/^ID$$/d' $< | sed '/^EI Q$$/,$$d' >> $@
 %.lzw %.rle: %.a85
 	cat $< | $(ASCII85) -d > $@
-%.rgb:  %.lzw lzw.py
-	python3 lzw.py decode $< $@  2>/tmp/$(@F).log
+%.rgb:  %.lzw $(PROGRAM)
+	python3 $(word 2, $+) decode $< $@  2>/tmp/$(@F).log
 %.view: %.rgb %.gs
 	WIDTH=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$4}' $*.gs); \
 	HEIGHT=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$5}' $*.gs); \
@@ -69,11 +70,11 @@ env:
 %.rgb.reunpacked: %.rle.repacked
 	python3 packbits.py unpack $< $@
 packtest: $(HOME)/tmp/sample.rgb.reunpacked
-%.lzw.check: %.rgb lzw.py
-	-python3 lzw.py encode $< $@ 2>/tmp/$(@F)$(IGNORE_EOI).log
+%.lzw.check: %.rgb $(PROGRAM)
+	-python3 $(word 2, $+) encode $< $@ 2>/tmp/$(@F)$(IGNORE_EOI).log
 	-diff -q $*.lzw $@
 %.rgb.check: %.lzw.check lzw.py
-	-python3 lzw.py decode $< $@ 2>/tmp/$(@F)$(IGNORE_EOI).log
+	-python3 $(word 2, $+) decode $< $@ 2>/tmp/$(@F)$(IGNORE_EOI).log
 	-diff -q $*.rgb $@
 %.diff: %.check
 	diff -y <(head -c $(BYTECOUNT) $* | xxd) \
