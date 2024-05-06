@@ -117,3 +117,8 @@ lzwdecode.compare: card.lzw lzw.py lzwfilter.py lzw.cs
 	for program in $(filter-out $<, $+); do \
 	 time ./$$program decode $< /tmp/$<.$$program.rgb; \
 	done
+lzwencode.compare: card.rgb lzw.py lzwfilter.py lzw.cs
+	for program in $(filter-out $<, $+); do \
+	 time ./$$program encode $< /tmp/$<.$$program.rgb; \
+	done
+compare: lzwdecode.compare lzwencode.compare
