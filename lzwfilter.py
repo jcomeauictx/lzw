@@ -203,6 +203,7 @@ class LZWReader(io.BufferedReader):
         self.oldcode = None
         self.buffer = bytearray()
         self.initialize_table()
+        self.limits = tuple((1 << n) - 2 for n in range(minbits, maxbits + 1))
 
     def __next__(self):
         '''
@@ -273,7 +274,7 @@ class LZWReader(io.BufferedReader):
             self.codedict[newkey] = bytestring
             doctest_debug('set codedict[%d] = ...%s', newkey, bytestring[-10:])
             # at 510, 1022, and 2046, bump bitlength
-            if (newkey + 2).bit_length() == (newkey + 1).bit_length() + 1:
+            if newkey in self.limits:
                 try:
                     if self.codesource.bitlength < self.codesource.maxbits:
                         doctest_debug(
