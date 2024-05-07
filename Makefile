@@ -5,7 +5,7 @@ ASCII85 := $(shell PATH=$(PATH):. \
 	     which ascii85 ascii85.py 2>/dev/null | head -n 1)
 PYTHON_DEBUGGING ?=
 EOI_IS_EOD ?= 1
-PROGRAM ?= lzwfilter.py
+PROGRAM ?= lzw.cs
 ifeq ($(EOI_IS_EOD),)
   IGNORE_EOI := .ignoreeoi
 endif
@@ -28,7 +28,7 @@ all: $(PROGRAM:.py=.pylint) $(PROGRAM:.py=.doctest)
 	sed '1,/^ID$$/d' $< | sed '/^EI Q$$/,$$d' >> $@
 %.lzw %.rle: %.a85
 	cat $< | $(ASCII85) -d > $@
-%.rgb:  %.lzw lzw.py
+%.rgb:  %.lzw $(PROGRAM)
 	./$(word 2, $+) decode $< $@  2>/tmp/$(@F).log
 %.view: %.rgb %.gs
 	WIDTH=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$4}' $*.gs); \
@@ -115,10 +115,10 @@ timetest:
 	tail -n 5 /tmp/timeit.txt
 lzwdecode.compare: card.lzw lzw.py lzwfilter.py lzw.cs
 	for program in $(filter-out $<, $+); do \
-	 time ./$$program decode $< /tmp/$<.$$program.rgb; \
+	 time ./$$program decode $< /tmp/$(<:.lzw=).$$program.rgb; \
 	done
 lzwencode.compare: card.rgb lzw.py lzwfilter.py lzw.cs
 	for program in $(filter-out $<, $+); do \
-	 time ./$$program encode $< /tmp/$<.$$program.rgb; \
+	 time ./$$program encode $< /tmp/$(<:.rgb=).$$program.lzw; \
 	done
 compare: lzwdecode.compare lzwencode.compare
