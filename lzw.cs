@@ -13,10 +13,10 @@ action (decode) eq
   ifelse
 /stringbuffer 1024 string def
 {input stringbuffer readstring 1 index length 0 gt or
-{output exch writestring} {pop output flushfile exit} ifelse} loop
-output.orig flushfile
+{output exch writestring} {pop output closefile exit} ifelse} loop
 [ outfile status ] 1 get dup 0 gt
   {[0] astore 128 string (bytes written: %d\n) 3 -1 roll sprintf
     {(%stderr) (w) file exch writestring} {pop} ifelse}
   {pop}
-ifelse
+  ifelse
+% vim: tabstop=8 expandtab shiftwidth=2 softtabstop=2
