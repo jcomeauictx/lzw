@@ -28,8 +28,8 @@ all: $(PROGRAM:.py=.pylint) $(PROGRAM:.py=.doctest)
 	sed '1,/^ID$$/d' $< | sed '/^EI Q$$/,$$d' >> $@
 %.lzw %.rle: %.a85
 	cat $< | $(ASCII85) -d > $@
-%.rgb:  %.lzw $(PROGRAM)
-	python3 $(word 2, $+) decode $< $@  2>/tmp/$(@F).log
+%.rgb:  %.lzw lzw.py
+	./$(word 2, $+) decode $< $@  2>/tmp/$(@F).log
 %.view: %.rgb %.gs
 	WIDTH=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$4}' $*.gs); \
 	HEIGHT=$$(awk '$$1 ~ /%%BoundingBox:/ {print $$5}' $*.gs); \
@@ -71,10 +71,10 @@ env:
 	python3 packbits.py unpack $< $@
 packtest: $(HOME)/tmp/sample.rgb.reunpacked
 %.lzw.check: %.rgb $(PROGRAM)
-	-python3 $(word 2, $+) encode $< $@ 2>/tmp/$(@F)$(IGNORE_EOI).log
+	-./$(word 2, $+) encode $< $@ 2>/tmp/$(@F)$(IGNORE_EOI).log
 	-diff -q $*.lzw $@
 %.rgb.check: %.lzw.check lzw.py
-	-python3 $(word 2, $+) decode $< $@ 2>/tmp/$(@F)$(IGNORE_EOI).log
+	-./$(word 2, $+) decode $< $@ 2>/tmp/$(@F)$(IGNORE_EOI).log
 	-diff -q $*.rgb $@
 %.diff: %.check
 	diff -y <(head -c $(BYTECOUNT) $* | xxd) \
