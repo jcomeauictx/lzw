@@ -6,6 +6,7 @@ ASCII85 := $(shell PATH=$(PATH):. \
 PYTHON_DEBUGGING ?=
 EOI_IS_EOD ?= 1
 PROGRAM ?= lzw.cs
+SCRIPTS = $(wildcard *.py)
 ifeq ($(EOI_IS_EOD),)
   IGNORE_EOI := .ignoreeoi
 endif
@@ -50,6 +51,7 @@ distclean: clean
 	rm -f fixedcard.pdf *.rej *.check *.doctest *.pylint *.raw
 %.pylint: %.py
 	$(PYLINT) $< > $@ || (cat $@; false)
+pylint: $(SCRIPTS:.py=.pylint)
 %.doctest: %.py
 	python3 -m doctest $< 2>&1 | tee $@
 env:
